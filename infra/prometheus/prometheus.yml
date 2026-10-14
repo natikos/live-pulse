@@ -1,0 +1,24 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Consumer lag, topic offsets, partitions.
+  - job_name: kafka
+    static_configs:
+      - targets: ["kafka-exporter:9308"]
+
+  # Only up when `--profile rabbit` is running.
+  - job_name: rabbitmq
+    static_configs:
+      - targets: ["rabbitmq:15692"]
+
+  # NestJS apps running on the host (prom-client, /metrics). Add ports as apps appear.
+  # Stage 1-4: single monolith; Stage 5: one target per service.
+  - job_name: live-pulse-apps
+    static_configs:
+      - targets: ["host.docker.internal:3000"]
