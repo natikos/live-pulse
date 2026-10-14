@@ -103,7 +103,7 @@ docker compose ps                                          # wait until everythi
 | Jaeger | http://localhost:16686 |
 
 Python tooling: `cd scripts && uv sync` (see [scripts/README.md](scripts/README.md)).
-The NestJS and React apps arrive in Stage 1; a single run command for them will be added here at that point.
+Server: `cd server && npm ci && npm run start:dev` (Node 24, listens on `PORT`, default 3000). The React app (`web/`) arrives in Stage 1.
 
 ## Docs
 

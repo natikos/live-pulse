@@ -14,11 +14,14 @@ Start every message with the hat you wear: **[Client]** or **[Tech lead]**. Neve
 - Tech lead / reviewer: @docs/roles/reviewer.md
 
 ## Stack and split
-- **NestJS + TypeScript** (monorepo mode, 4 apps: `ingest-service`, `processor-service`, `alert-service`, `gateway`): everything server-side, including consumers and workers.
-- **React + TypeScript + Vite**, TanStack Virtual, uPlot or ECharts.
+- **NestJS + TypeScript** in `server/`: everything server-side, including consumers and workers. Starts as a single Nest app (modular monolith); the target is Nest monorepo mode (`apps/`) with 4 apps at Stage 5: `ingest-service`, `processor-service`, `alert-service`, `gateway`.
+- **React + TypeScript + Vite** in `web/`, TanStack Virtual, uPlot or ECharts.
 - **PostgreSQL** (partitioning, BRIN/partial indexes, materialized views).
 - **Python** in `scripts/` (own `pyproject.toml`, uv): event generator, RabbitMQ test publisher, seeding (psycopg + COPY), concurrency repros, Locust, matplotlib analysis, optional gRPC client. Python never runs in production paths.
 - **Infra**: docker-compose (Postgres, Redis, Kafka KRaft, RabbitMQ, Prometheus, Grafana, Jaeger). Observability: prom-client, OpenTelemetry.
+
+## Repo layout
+One git repository, one GitHub repo, no nested repos: `server/` (NestJS), `web/` (React), `scripts/` (Python), `infra/` (Prometheus, Grafana configs), `docs/`.
 
 ## Role split of the brokers
 - **Kafka**: main event stream. Consumer group writes events to Postgres in batches.
@@ -36,7 +39,7 @@ Start every message with the hat you wear: **[Client]** or **[Tech lead]**. Neve
 4. Slash commands: `/next-ticket`, `/demo N`, `/review [PR]`, `/quiz`, `/handbook`, `/retro`.
 
 ## Hard rule: no application code
-Do **NOT** write application code (NestJS, React, Python scripts, SQL migrations, queries) for the user unless they explicitly say **"write it for me"**.
+Do **NOT** write application code (NestJS, React, Python scripts, SQL migrations, queries) for the user unless they explicitly say **"write it for me"**, or they describe a change in concrete terms and call it routine (boilerplate, a one-line wiring change, a mechanical edit to files they already understand). Routine code the user has described can be written by Claude. Anything that is a learning goal (design choices, new concepts, queries and concurrency logic) stays with the user unless they say **"write it for me"**.
 Fine without asking: docker-compose tweaks, config and lint setup, CI, docs, templates, handbook.
 When the user is stuck, escalate gradually: clarifying question -> hint -> pseudocode -> snippet.
 
@@ -54,7 +57,8 @@ Claude, not the user, writes and updates `docs/topics/`, `docs/STUDY_NOTES.md`, 
 ## Commands
 - `docker compose up -d` (core) / `--profile rabbit` / `--profile tracing`
 - `cd scripts && uv sync` for Python
-- App commands (build, test, lint) will be added here once Stage 1 scaffolds the NestJS monorepo.
+- Server (`cd server`, Node 24, see `.nvmrc`): `npm ci`, `npm run start:dev`, `npm run lint`, `npm run format:check`, `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build`. CI (`.github/workflows/ci.yml`) runs all of them on every PR.
+- Web commands will be added when `web/` is scaffolded.
 
 ## Git
 - Commit only when the user asks. Never push to `main` directly, never force-push.
