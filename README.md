@@ -86,7 +86,7 @@ flowchart LR
 
 ## Run it from scratch
 
-Prerequisites: Docker (with Compose v2), `uv` (for Python), Node.js LTS (from Stage 1), `gh` CLI.
+Prerequisites: Docker (with Compose v2), `uv` (for Python), Node.js LTS (from Stage 1), `gh` CLI, [Lefthook](https://lefthook.dev) (git hooks).
 
 ```bash
 cp .env.example .env
@@ -104,6 +104,22 @@ docker compose ps                                          # wait until everythi
 
 Python tooling: `cd scripts && uv sync` (see [scripts/README.md](scripts/README.md)).
 Server: `cd server && npm ci && npm run start:dev` (Node 24, listens on `PORT`, default 3000). The React app (`web/`) arrives in Stage 1.
+
+### Git hooks
+
+Hooks are managed by Lefthook ([lefthook.yml](lefthook.yml)). Install once after cloning:
+
+```bash
+brew install lefthook   # or see https://lefthook.dev/installation/
+lefthook install
+```
+
+| Hook | Runs (in `server/`) |
+|------|------|
+| pre-commit | `format:check`, `lint` (whole project, in parallel) |
+| pre-push | `typecheck`, `test` |
+
+Hooks are quick feedback only; CI runs the full set on every PR. Skip in an emergency with `--no-verify`.
 
 ## Docs
 
