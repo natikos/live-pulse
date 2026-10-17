@@ -1,7 +1,10 @@
 import z from 'zod';
 import { PageId } from '../event.model.js';
 
-const PAGES_NEED_ENTITY_ID: ReadonlySet<string> = new Set(['category', 'item'] satisfies PageId[]);
+const PAGES_NEED_ENTITY_ID: ReadonlySet<string> = new Set([
+  'category',
+  'item',
+] satisfies PageId[]);
 
 const envelope = {
   source: z.enum(['web', 'mobile', 'server']),
@@ -65,7 +68,10 @@ export const recordEventSchema = z
       });
     }
 
-    if (event.type === 'page_view' && PAGES_NEED_ENTITY_ID.has(event.payload.page_id)) {
+    if (
+      event.type === 'page_view' &&
+      PAGES_NEED_ENTITY_ID.has(event.payload.page_id)
+    ) {
       if (event.payload.entity_id === undefined) {
         ctx.addIssue({
           code: 'custom',
