@@ -1,6 +1,6 @@
 # Event contract
 
-**Status: DRAFT.** Written from the design discussion for issue #1. It describes the intended behaviour; the validation (DTO) is not implemented yet, so this file must be re-checked against the real behaviour before the demo. Items marked **OPEN** are not decided.
+**Status: agreed** (issue #1). This is the contract client teams integrate against; the server must behave exactly as described here. Any change to it is a contract change and needs a new decision in `docs/DECISIONS.md`.
 
 ## Envelope (common to all events)
 
