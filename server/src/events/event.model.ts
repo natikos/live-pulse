@@ -54,15 +54,14 @@ type SpecificEvent =
       };
     };
 
-type PayloadOf<T extends SpecificEvent['type']> = Extract<
-  SpecificEvent,
-  { type: T }
->['payload'];
-
-type PageViewEventPayload = PayloadOf<'page_view'>;
-type PurchaseEventPayload = PayloadOf<'purchase'>;
-type ErrorEventPayload = PayloadOf<'error'>;
-
 // Shared by the model and the DTO, so the page list lives in one place.
-export const PAGES = ['home', 'catalog', 'category', 'item', 'cart', 'checkout', 'my-orders'] as const;
+export const PAGES = [
+  'home',
+  'catalog',
+  'category',
+  'item',
+  'cart',
+  'checkout',
+  'my-orders',
+] as const;
 export type PageId = (typeof PAGES)[number];

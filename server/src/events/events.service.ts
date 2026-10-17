@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from '../database/database.service.js';
-import { EventsRepository } from './events.repository.js';
 import { RecordEventDto } from './dto/record-event.dto.js';
 import { EventModel } from './event.model.js';
+import { EventsRepository } from './events.repository.js';
 
 @Injectable()
 export class EventsService {
