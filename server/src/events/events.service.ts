@@ -7,6 +7,10 @@ import { EventsRepository } from './events.repository.js';
 export class EventsService {
   constructor(private readonly repository: EventsRepository) {}
 
+  async getEvents() {
+    return this.repository.getEvents();
+  }
+
   async recordEvent(body: RecordEventDto) {
     const { occurred_at, ...rest } = body;
 
@@ -15,6 +19,7 @@ export class EventsService {
       occurred_at: new Date(occurred_at),
     };
 
-    return this.repository.insertEvent(event);
+    const result = await this.repository.insertEvent(event);
+    return { isNew: (result[0].numInsertedOrUpdatedRows ?? 0) > 0 };
   }
 }

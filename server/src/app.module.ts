@@ -1,9 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Module, StandardSchemaValidationPipe } from '@nestjs/common';
+import { APP_PIPE } from '@nestjs/core';
 import { AppController } from './app.controller.js';
+import { EventsModule } from './events/events.module.js';
 
 @Module({
-  imports: [],
+  imports: [EventsModule],
   controllers: [AppController],
-  providers: [],
+  providers: [{ provide: APP_PIPE, useClass: StandardSchemaValidationPipe }],
 })
 export class AppModule {}

@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 export interface AppConfig {
   port: number;
   databaseUrl: string;
@@ -5,7 +7,12 @@ export interface AppConfig {
   kafkaBrokers: string[];
   rabbitmqUrl: string | undefined;
   otelEndpoint: string | undefined;
+  maxClockSkewMs: number;
+  maxEventAgeMs: number;
 }
+
+const DEFAULT_MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
+const DEFAULT_MAX_EVENT_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 function required(name: string): string {
   const value = process.env[name];
@@ -27,6 +34,24 @@ function parsePort(raw: string | undefined): number {
   return port;
 }
 
+function parseDurationMs(
+  name: string,
+  raw: string | undefined,
+  fallback: number,
+): number {
+  if (raw === undefined || raw.trim() === '') {
+    return fallback;
+  }
+
+  const ms = Number(raw);
+
+  if (!Number.isInteger(ms) || ms < 0) {
+    throw new Error(`Invalid ${name}: ${raw}`);
+  }
+
+  return ms;
+}
+
 export function loadConfig(): AppConfig {
   const env = process.env;
   return {
@@ -39,6 +64,16 @@ export function loadConfig(): AppConfig {
       .filter((broker) => broker.length > 0),
     rabbitmqUrl: env.RABBITMQ_URL || undefined,
     otelEndpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT || undefined,
+    maxClockSkewMs: parseDurationMs(
+      'MAX_CLOCK_SKEW_MS',
+      env.MAX_CLOCK_SKEW_MS,
+      DEFAULT_MAX_CLOCK_SKEW_MS,
+    ),
+    maxEventAgeMs: parseDurationMs(
+      'MAX_EVENT_AGE_MS',
+      env.MAX_EVENT_AGE_MS,
+      DEFAULT_MAX_EVENT_AGE_MS,
+    ),
   };
 }
 

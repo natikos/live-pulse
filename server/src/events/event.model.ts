@@ -5,6 +5,7 @@ interface BaseEvent {
   occurred_at: Date;
   user_id?: string;
   device_id?: string;
+  event_id: string;
 }
 
 type SpecificEvent =
@@ -23,6 +24,7 @@ type SpecificEvent =
       type: 'purchase';
       payload: {
         order_id: string;
+        channel: 'app' | 'phone' | 'admin';
         sum: number;
         items: Array<{ id: string; unit_price: number; quantity: number }>;
       };

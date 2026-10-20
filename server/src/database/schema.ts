@@ -7,6 +7,7 @@ export interface Database {
 
 export interface EventsTable {
   id: Generated<number>;
+  event_id: string;
   type: EventModel['type'];
   payload: EventModel['payload'];
   source: EventModel['source'];
