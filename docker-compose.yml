@@ -3,6 +3,7 @@
 #   docker compose up -d                          # core: postgres, redis, kafka, prometheus, grafana, kafka-exporter
 #   docker compose --profile rabbit up -d         # + RabbitMQ (Stage 2b)
 #   docker compose --profile tracing up -d        # + Jaeger (Stage 4/5)
+#   (profile `test`: throwaway Postgres for e2e, managed by `npm run test:e2e`)
 #   docker compose --profile rabbit --profile tracing up -d   # everything
 #
 # Application containers (NestJS apps, nginx) are added in later stages.
@@ -29,6 +30,22 @@ services:
     healthcheck:
       <<: *hc
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+
+  # Throwaway Postgres for the server e2e tests; started and removed by server/test/global-setup.ts.
+  postgres-test:
+    profiles: ["test"]
+    image: postgres:17.11
+    environment:
+      POSTGRES_USER: livepulse
+      POSTGRES_PASSWORD: livepulse
+      POSTGRES_DB: livepulse_test
+    ports:
+      - "${POSTGRES_TEST_PORT:-5433}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      <<: *hc
+      test: ["CMD-SHELL", "pg_isready -U livepulse -d livepulse_test"]
 
   redis:
     image: redis:8.10.2-alpine

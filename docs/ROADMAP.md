@@ -10,11 +10,11 @@ Legend: **[N]** NestJS/TS, **[R]** React/TS, **[P]** Python, **[I]** infra/SQL.
 ## Stage 1: Ingest + DB + simple event list
 Goal: a working vertical slice. Events go in over HTTP, are stored, and can be listed.
 
-- [ ] **Ingest endpoint** [N]
+- [x] **Ingest endpoint** [N]
   - Topic: accepting events with validation.
   - Done when: invalid events are rejected with a clear error; valid events are persisted; the contract (event shape) is written down.
   - Prepares for: REST design, validation, API contracts.
-- [ ] **Events storage** [N][I]
+- [x] **Events storage** [N][I]
   - Topic: event schema and migrations in Postgres.
   - Done when: schema is versioned by migrations; a rerun on an empty DB reproduces it.
   - Prepares for: data modelling, migrations.

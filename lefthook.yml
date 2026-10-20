@@ -1,0 +1,27 @@
+# Fast feedback only: CI stays the source of truth (hooks can be skipped with --no-verify).
+# Install once after cloning: `lefthook install` (brew install lefthook).
+#
+# Lint runs on the whole project, not on staged files: `oxlint --type-aware`
+# analyses the project as a whole, so a file list can give a different result.
+# Revisit when the project grows and the hook becomes slow.
+
+pre-commit:
+  parallel: true
+  commands:
+    server-format:
+      root: server/
+      glob: "*.{ts,json}"
+      run: npm run format:check
+    server-lint:
+      root: server/
+      glob: "*.ts"
+      run: npm run lint
+
+pre-push:
+  commands:
+    server-typecheck:
+      root: server/
+      run: npm run typecheck
+    server-test:
+      root: server/
+      run: npm test
