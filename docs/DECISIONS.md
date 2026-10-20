@@ -114,3 +114,35 @@ Written by Claude after reviews and accepted tickets. See [HANDBOOK_GUIDE.md](HA
 - **What changed:** limits in the event DTO, boundary tests, [EVENT_CONTRACT.md](EVENT_CONTRACT.md).
 - **Lesson:** separate technical limits (the developer's call) from business limits (the client's call), and ask the owner before a guess becomes a rejection of revenue.
 - **Related chapter:** [api-styles.md](topics/api-styles.md)
+
+### 2026-10-20: Validation applied through a global pipe in `AppModule`
+- **Issue / PR:** #1 / PR #3
+- **Decision:** register `StandardSchemaValidationPipe` as `APP_PIPE` in `AppModule`.
+- **Alternatives considered:** `app.useGlobalPipes(...)` in `main.ts` (tests built from `AppModule` would not get it); a shared `configureApp(app)` function (extra layer for one call; tried and removed as premature).
+- **Reasoning:** the pipe becomes part of the DI graph, so the e2e tests and production run the same validation.
+- **Reviewer feedback:**
+  - BLOCKER: no pipe was registered at all; the schema was never applied and an invalid `type` reached Postgres (500). Found when a payload with a typo in `type` produced a database error.
+- **What changed:** pipe registered; e2e tests assert `400` naming the field and that nothing is stored.
+- **Lesson:** unit-testing a schema does not prove it is wired in; test through HTTP.
+- **Related chapter:** [nestjs.md](topics/nestjs.md)
+
+### 2026-10-20: e2e tests on a throwaway Postgres, files run one by one
+- **Issue / PR:** #1 / PR #3
+- **Decision:** `npm run test:e2e` starts a `postgres-test` container (compose profile `test`, tmpfs, own port), runs the migrations and removes the container; CI uses a service container instead (`E2E_EXTERNAL_DB=1`). e2e files do not run in parallel.
+- **Alternatives considered:** reuse the dev database (a `TRUNCATE` in a test would wipe dev data); one database per worker (parallel, but more setup); Testcontainers library (new dependency).
+- **Reasoning:** the dev data must never be touched, and all files share one database, so a `TRUNCATE` in one file would wipe another file's data mid-test. The container is removed if setup fails, so a failed run leaves no state behind.
+- **Reviewer feedback:** none beyond the discussion.
+- **What changed:** `docker-compose.yml` profile, `test/global-setup.ts`, `fileParallelism: false`, a CI Postgres service.
+- **Lesson:** isolate test state from development state, and make a failed setup clean up after itself.
+- **Related chapter:** [databases.md](topics/databases.md)
+
+### 2026-10-20: Swagger examples and descriptions live in the Zod schema
+- **Issue / PR:** #1 / PR #3
+- **Decision:** examples and field descriptions are added with `.meta({ description, example })` on the schema fields; response codes are declared on the route with `@ApiCreatedResponse`, `@ApiOkResponse`, `@ApiBadRequestResponse`.
+- **Alternatives considered:** a separate file of `@ApiBody({ examples })` (documentation drifts from the rules; the first attempt also failed typecheck because the decorator requires `schema` or `type`).
+- **Reasoning:** the documentation sits next to the rule it describes. The `occurred_at` example is computed at startup because a fixed timestamp would be rejected as too old within 30 days.
+- **Reviewer feedback:**
+  - SHOULD-FIX (accepted): Swagger showed `MAX_SAFE_INTEGER` as the `occurred_at` example and no `200`/`400` responses, so "Try it out" with the default example failed.
+- **What changed:** schema metadata, response decorators on `POST /events`.
+- **Lesson:** generated documentation needs a read-through; defaults can be wrong.
+- **Related chapter:** [api-styles.md](topics/api-styles.md)

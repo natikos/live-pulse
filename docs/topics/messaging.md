@@ -66,9 +66,11 @@ Reasoning about a crash: "Where is the commit point? What was already side-effec
 - Kafka producer settings that matter for durability: acks from all in-sync replicas, retries with idempotent producer to avoid duplicates from retries.
 - RabbitMQ: **ack** after success, **nack** with or without requeue on failure; **prefetch** limits unacked messages per consumer; dead-lettering via DLX; retry-with-delay via TTL queue + DLX.
 - Batch consumption: bigger batches raise throughput and latency; commit offsets after the batch is durably written.
+- **Sync vs async ingest:** with a synchronous write the answer "accepted" means "stored"; with a queue in front it means only "accepted", and what happens between accepting and writing becomes your responsibility. In an async pipeline the consumer has no client to answer, so a duplicate is silently ignored (and ideally counted in a metric); a `200 duplicate` exists only in the synchronous design.
+- Batches **inside** the system (a consumer reads many messages and writes one multi-row insert) are independent of batches **at the API** (a `POST /batch` endpoint that accepts an array). The first needs no new endpoint; the second only serves clients that buffer events.
 
 ## In 30 seconds
-"Kafka is a partitioned, replayable log where consumers pull and track offsets; RabbitMQ is a routing broker that pushes messages to queues and deletes them on ack. I use Kafka for the high-volume event stream because I need ordering per key, parallelism by partition and replay, and RabbitMQ for alerts because I need routing, retries and a dead-letter queue. Delivery is at-least-once, so consumers must be idempotent: a unique event id with ON CONFLICT DO NOTHING turns duplicates into no-ops. If lag grows I check processing time and partition skew before adding consumers, since consumers can't exceed partitions."
+"Kafka is a partitioned, replayable log where consumers pull and track offsets; RabbitMQ is a routing broker that pushes messages to queues and deletes them on ack. I use Kafka for the high-volume event stream because I need ordering per key, parallelism by partition and replay, and RabbitMQ for alerts because I need routing, retries and a dead-letter queue. Delivery is at-least-once, so consumers must be idempotent: a unique event id with ON CONFLICT DO NOTHING turns duplicates into no-ops. If lag grows I check processing time and partition skew before adding consumers, since consumers can't exceed partitions. A queue in front of the database turns the answer from 'stored' into 'accepted', so I design for the gap between the two."
 
 **Follow-ups:**
 - *Can Kafka do exactly-once?* Within Kafka (idempotent producer + transactions); end-to-end with a DB sink needs an idempotent write or atomic offset+data storage.
@@ -77,11 +79,13 @@ Reasoning about a crash: "Where is the commit point? What was already side-effec
 - *Why can't I add 100 consumers to fix lag?* Max useful consumers = partitions.
 - *Message always fails?* Bounded retries with backoff, then DLQ plus alerting; investigate and replay.
 - *Why not just Kafka for everything?* Per-message retry/delay/DLQ/routing aren't built in.
+- *10,000 events/s hit a synchronous `POST` that inserts one row. What breaks first?* The connection pool (default 10 connections, requests queue and then time out) and the per-event commit overhead. Fixes: queue + batched writes (cost: weaker "accepted" guarantee, at-least-once delivery, more moving parts), batching in the app (cheaper, but events in memory are lost on a crash), more instances / pool size.
+- *The consumer crashes after the DB commit but before the offset commit. What happens?* The batch is redelivered; the unique `event_id` plus `ON CONFLICT DO NOTHING` ignores the rows already stored, so the table holds each event once. If it crashed before the DB commit, the transaction rolled back and the redelivery inserts them.
 
 ## In Live Pulse
-_Stub. Claude fills as the project progresses._
 - Experiments: E4 (kill consumer), E5 (partitions), E6 (replay), E7 (lag), E8 (poison message/DLQ) in [EXPERIMENTS.md](../EXPERIMENTS.md).
-- Issues / PRs: _(none yet)_
+- Stage 1 (#1, PR #3) ingests synchronously: `POST /events` writes to Postgres before answering. The idempotency design (client-generated `event_id`, unique constraint, `ON CONFLICT DO NOTHING`) is what will make an at-least-once Kafka consumer safe later.
+- Issues / PRs: #1 / PR #3
 
 ## Lessons from building it
-_Stub. Real findings go here._
+- **Quiz after #1:** the idempotent-consumer scenario was answered correctly (redelivered batch, conflicts ignored by the database). The gap was that in an async flow there is no client to reply `duplicate` to; it is ignored silently. Also: a batch consumer does not require a batch HTTP endpoint.

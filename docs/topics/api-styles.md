@@ -48,12 +48,16 @@ Rule of thumb: **REST at the edge, gRPC between services, GraphQL when client-dr
 - *How do you version a REST API?* Prefer additive changes; version the path only for breaking ones.
 - *tRPC vs REST?* tRPC removes the contract layer when one TS team owns both ends; it fails for external consumers.
 - *Offset vs cursor pagination?* Cursor: stable and constant cost; offset degrades with depth and shifts under writes.
+- *How do you make a `POST` safe to retry?* The client generates an id once per operation and reuses it on retries; the server deduplicates by it (a unique constraint) and answers success for a repeat. Decide and document what a reused id with a different body means.
+- *What should an error response contain for an external client?* The field, the reason, and a stable shape; nothing about internals. Test the real HTTP response, not just the validator.
 
 ## In Live Pulse
-_Stub. Claude fills as the project progresses._
 - Stages 1-4: REST between frontend and backend. Stage 5: gRPC becomes the real sync transport between gateway and processor.
+- Ingest `POST /events` (#1, PR #3): one endpoint for three event types (a discriminated union on `type`); `201 {status: created}` for a new event, `200 {status: duplicate}` for a repeated `event_id`, `400` with `message: ["field: reason", ...]` and nothing stored. The contract is [EVENT_CONTRACT.md](../EVENT_CONTRACT.md); Swagger is generated from the same Zod schema, with examples kept in the schema (`.meta`).
 - Optional experiment: E18 (gRPC vs REST on latency and payload size) in [EXPERIMENTS.md](../EXPERIMENTS.md).
-- Issues / PRs: _(none yet)_
+- Issues / PRs: #1 / PR #3
 
 ## Lessons from building it
-_Stub. Real findings go here._
+- **A contract is only as good as the proof it matches reality.** The documented behaviour, the Swagger output and the real responses were compared on a live run before the ticket was accepted.
+- **Examples in docs must not expire.** The contract example had a fixed `occurred_at`; the API rejects events older than 30 days, so a copied example would start failing within a month. Swagger examples are computed at startup for the same reason.
+- **Auto-generated docs describe the request, not the behaviour.** Swagger showed the body but no `200`/`400` until the response codes were declared on the route.
