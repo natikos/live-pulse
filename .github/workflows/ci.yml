@@ -11,6 +11,21 @@ jobs:
     defaults:
       run:
         working-directory: server
+    # Same image tag as the postgres services in docker-compose.yml; keep them in sync.
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_USER: livepulse
+          POSTGRES_PASSWORD: livepulse
+          POSTGRES_DB: livepulse_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U livepulse -d livepulse_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,4 +41,11 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run test:e2e
+        env:
+          # Use the service container above instead of starting one via Docker.
+          E2E_EXTERNAL_DB: "1"
+          DATABASE_URL: postgresql://livepulse:livepulse@localhost:5432/livepulse_test
+          # Required by config.ts at startup; the e2e tests do not connect to them yet.
+          REDIS_URL: redis://localhost:6379
+          KAFKA_BROKERS: localhost:9092
       - run: npm run build
