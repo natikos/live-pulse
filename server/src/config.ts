@@ -1,6 +1,7 @@
 import 'dotenv/config';
 
 export interface AppConfig {
+  nodeEnv: string | undefined;
   port: number;
   databaseUrl: string;
   redisUrl: string;
@@ -55,6 +56,7 @@ function parseDurationMs(
 export function loadConfig(): AppConfig {
   const env = process.env;
   return {
+    nodeEnv: env.NODE_ENV,
     port: parsePort(env.PORT),
     databaseUrl: required('DATABASE_URL'),
     redisUrl: required('REDIS_URL'),

@@ -11,7 +11,7 @@ export class DatabaseService
 {
   constructor() {
     super({
-      log: ['error', 'query'],
+      log: config.nodeEnv === 'development' ? ['error', 'query'] : ['error'],
       dialect: new PostgresDialect({
         pool: new Pool({
           connectionString: config.databaseUrl,
