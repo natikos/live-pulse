@@ -7,7 +7,7 @@ const PAGES_NEED_ENTITY_ID: ReadonlySet<string> = new Set([
   'item',
 ] satisfies PageId[]);
 
-const MIN_OCCURRED_AT_MS = 1_000_000_000_000;
+export const MIN_OCCURRED_AT_MS = 1_000_000_000_000;
 
 const MAX_ID_LENGTH = 128;
 const MAX_CODE_LENGTH = 64;
@@ -34,49 +34,55 @@ const envelope = {
   device_id: z.string().min(1).max(MAX_ID_LENGTH).optional(),
 };
 
+export const pageViewPayload = z.strictObject({
+  // Open vocabulary: unknown pages are accepted (EVENT_CONTRACT.md).
+  page_id: z.string().min(1).max(MAX_ID_LENGTH),
+  entity_id: z.string().min(1).max(MAX_ID_LENGTH).optional(),
+  referrer: z.string().max(MAX_URL_LENGTH).optional(),
+  utm_source: z.string().max(MAX_UTM_LENGTH).optional(),
+  utm_medium: z.string().max(MAX_UTM_LENGTH).optional(),
+  utm_campaign: z.string().max(MAX_UTM_LENGTH).optional(),
+});
+
 const pageViewEvent = z.strictObject({
   ...envelope,
   type: z.literal('page_view'),
-  payload: z.strictObject({
-    // Open vocabulary: unknown pages are accepted (EVENT_CONTRACT.md).
-    page_id: z.string().min(1).max(MAX_ID_LENGTH),
-    entity_id: z.string().min(1).max(MAX_ID_LENGTH).optional(),
-    referrer: z.string().max(MAX_URL_LENGTH).optional(),
-    utm_source: z.string().max(MAX_UTM_LENGTH).optional(),
-    utm_medium: z.string().max(MAX_UTM_LENGTH).optional(),
-    utm_campaign: z.string().max(MAX_UTM_LENGTH).optional(),
-  }),
+  payload: pageViewPayload,
+});
+
+export const purchasePayload = z.strictObject({
+  order_id: z.string().min(1).max(MAX_ID_LENGTH),
+  channel: z.enum(['app', 'phone', 'admin']),
+  sum: z.int().positive(),
+  items: z
+    .array(
+      z.strictObject({
+        id: z.string().min(1).max(MAX_ID_LENGTH),
+        unit_price: z.int().positive(),
+        quantity: z.int().positive().max(MAX_QUANTITY),
+      }),
+    )
+    .nonempty()
+    .max(MAX_ITEMS),
 });
 
 const purchaseEvent = z.strictObject({
   ...envelope,
   source: z.literal('server'),
   type: z.literal('purchase'),
-  payload: z.strictObject({
-    order_id: z.string().min(1).max(MAX_ID_LENGTH),
-    channel: z.enum(['app', 'phone', 'admin']),
-    sum: z.int().positive(),
-    items: z
-      .array(
-        z.strictObject({
-          id: z.string().min(1).max(MAX_ID_LENGTH),
-          unit_price: z.int().positive(),
-          quantity: z.int().positive().max(MAX_QUANTITY),
-        }),
-      )
-      .nonempty()
-      .max(MAX_ITEMS),
-  }),
+  payload: purchasePayload,
+});
+
+export const errorPayload = z.strictObject({
+  operation: z.string().min(1).max(MAX_CODE_LENGTH),
+  code: z.string().min(1).max(MAX_CODE_LENGTH),
+  page_id: z.string().min(1).max(MAX_ID_LENGTH).optional(),
 });
 
 const errorEvent = z.strictObject({
   ...envelope,
   type: z.literal('error'),
-  payload: z.strictObject({
-    operation: z.string().min(1).max(MAX_CODE_LENGTH),
-    code: z.string().min(1).max(MAX_CODE_LENGTH),
-    page_id: z.string().min(1).max(MAX_ID_LENGTH).optional(),
-  }),
+  payload: errorPayload,
 });
 
 export const recordEventSchema = z
@@ -126,3 +132,13 @@ export const recordEventSchema = z
   });
 
 export type RecordEventDto = z.infer<typeof recordEventSchema>;
+
+export const recordEventResponseSchema = z.strictObject({
+  status: z.enum(['created', 'duplicate']).meta({
+    description:
+      '`created` for a new event (201), `duplicate` when the `event_id` already exists (200).',
+    example: 'created',
+  }),
+});
+
+export type RecordEventResponseDto = z.infer<typeof recordEventResponseSchema>;
