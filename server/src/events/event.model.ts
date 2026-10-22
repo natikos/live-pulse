@@ -56,6 +56,14 @@ type SpecificEvent =
       };
     };
 
+// Bounds are inclusive. Every field is optional; the set ones combine with AND.
+export interface EventsFilter {
+  types?: Array<EventModel['type']>;
+  from?: Date;
+  to?: Date;
+  limit: number;
+}
+
 // Shared by the model and the DTO, so the page list lives in one place.
 export const PAGES = [
   'home',
