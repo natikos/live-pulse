@@ -30,7 +30,7 @@ Rule of thumb: **REST at the edge, gRPC between services, GraphQL when client-dr
 - **Expensive queries (GraphQL):** a client can request a huge nested graph; enforce depth/complexity limits and persisted queries.
 - **Breaking changes:** REST: version the path or evolve additively; GraphQL: deprecate fields; gRPC/protobuf: never reuse field numbers, only add optional fields.
 - **Sync chain latency:** every hop adds latency and failure probability; set deadlines/timeouts, propagate them.
-- **Pagination:** offset gets slow and unstable on large, changing data; keyset (cursor) pagination is stable and fast. Applies to every style.
+- **Pagination:** offset gets slow and unstable on large, changing data; keyset (cursor) pagination is stable and fast. Applies to every style. Full comparison of techniques: [databases.md](databases.md), "Pagination".
 - **Idempotency:** retries need idempotent methods or idempotency keys, regardless of style.
 
 ## Key details that matter

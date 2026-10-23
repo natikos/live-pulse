@@ -60,6 +60,22 @@ Tx B:      read counter=5 -- write 6 -- commit      => final 6, should be 7  (lo
 
 **Materialized view:** precomputed query result. Fast reads, stale data until refreshed. Choose when reads are heavy and slight staleness is fine; otherwise maintain an aggregate table incrementally.
 
+**Pagination:**
+
+| Technique | How it works | Pros | Cons | Typical use |
+|-----------|--------------|------|------|-------------|
+| `LIMIT` only | newest N rows, no way to continue | trivial | older rows unreachable; not paging | "latest 10" widgets |
+| `OFFSET` / `LIMIT` | skip N rows, take the next page | simple; random access ("page 57"); easy total count | cost grows with depth (reads and discards N rows); rows shift when data changes -> duplicates and gaps | small, rarely-changing tables; admin screens; back-office search |
+| Window function (`ROW_NUMBER() OVER`, `COUNT(*) OVER()`) | number all matching rows, filter by number | one query gives page and total | numbers every matching row on every request (O(N), no better than offset); same shifting problem; total is stale at once | analytics ("top 3 per group"), not paging |
+| Keyset / seek (`WHERE (a, id) < ($1, $2) ORDER BY a DESC, id DESC`) | continue from the last seen sort key | index seek, O(log N + limit) at any depth; stable under inserts | no jump to page N; no cheap total; needs a unique tie-breaker and an index matching the order; one index per filter + sort combination | feeds, logs, event streams, infinite scroll, large append-only tables |
+| Opaque cursor (keyset position encoded in a token) | API contract on top of keyset: server returns `next_cursor`, client sends it back | implementation can change without breaking clients; token can carry a filter hash and be validated | same limits as keyset; must reject tampered or foreign tokens (`400`) | public APIs over keyset (Stripe, GitHub, Slack style) |
+| Server-side DB cursor (`DECLARE CURSOR` / `FETCH`) | database keeps the result position open | cheap sequential reads of a huge result; consistent snapshot | holds a transaction and connection between requests; pins one instance; exhausts the pool; stateful | batch export and ETL inside one process, not HTTP APIs |
+| Snapshot / ID-range (`WHERE id > $last` with fixed bounds) | split the table into ranges up front | parallel workers; no deep scans | only for a monotonic key; no custom sort | backfills, migrations, parallel exports |
+
+- **Cursor vs keyset are different layers.** Keyset is the SQL technique; a cursor is the API contract that hides it.
+- **Total count and random access are the price of keyset.** If the product needs "page 57 of 900", offset (or an estimate) is the honest answer; if it needs a live feed, keyset.
+- **Pick the strategy from the data:** small and static -> offset is fine; large, append-heavy or deep -> keyset; both needed -> keyset for navigation, a separate approximate count (`pg_class.reltuples` or a cached counter).
+
 ## Failure modes and how to reason about them
 - **Lost update:** two transactions read the same value, both write. Reason: "is this a read-modify-write in the application across statements?" If yes, it is a candidate.
 - **Write skew:** two transactions each check an invariant on different rows, then both write; invariant breaks. Only SERIALIZABLE (or explicit locking of a shared row) prevents it.
@@ -90,6 +106,8 @@ Tx B:      read counter=5 -- write 6 -- commit      => final 6, should be 7  (lo
 - *Optimistic vs pessimistic?* Optimistic detects conflicts at write and retries (cheap when rare); pessimistic locks first (predictable under high contention, but blocks).
 - *When SERIALIZABLE?* Multi-row invariants (write skew) where explicit locking is awkward, and you can afford retries.
 - *B-tree vs BRIN?* B-tree is precise and large; BRIN is tiny and works only when values correlate with physical order.
+- *Why not paginate with a window function?* It numbers every matching row on each request, so it is O(N) like offset and shifts the same way.
+- *Keyset vs cursor?* Keyset is the SQL (`WHERE (ts, id) < ...`); the cursor is the opaque token that hides it from clients. Cost of keyset: no jump to page N, no cheap total.
 - *Why can adding an index make things worse?* Every write updates it; and the planner may not use it.
 - *Query got slow after a month of growth, what do you check?* Plan changed to seq scan, stale statistics, table/index bloat, missing partition pruning.
 - *Do two writes to the same table block each other?* No. They wait only if they touch the same row or the same unique key (or one of them takes a table-level lock such as `TRUNCATE`).
@@ -108,3 +126,5 @@ Tx B:      read counter=5 -- write 6 -- commit      => final 6, should be 7  (lo
 - **Seeing MVCC in a real table** (`pageinspect`): tx 741 inserts `a` (`xmin=741`); tx 742 updates it to `b`, so slot 1 gets `xmax=742` and the new version sits in slot 2; while tx 743 had updated to `c` but not committed, a reader still saw `b` (`xmax=743` already on it) and did not wait; after `VACUUM` slots 1 and 2 were freed and only `c` remained.
 - **`events` is append-only, so it makes almost no dead versions.** Bloat and vacuum become a real concern for counters and aggregates that are updated constantly (Stage 2 and later).
 - **A reused `event_id` with a different body is dropped silently** (first wins). Cheap to change later; see the decision log.
+- **`LIMIT` without a cursor is not paging.** `GET /events?limit=100` can only ever show the newest 100 rows; older events are unreachable. Real paging needs either `OFFSET` (cost grows with depth, and rows shift when new events arrive) or a keyset cursor on `(occurred_at, id)` (flat cost, stable under inserts, but no "jump to page N"). The ticket's "no skipped or duplicated rows while paging" criterion points at keyset. (#4 review.)
+- **An `ORDER BY ... LIMIT` is only cheap if an index matches the order.** `events` has only the primary key and the `event_id` unique index, so newest-first over 1M rows is a sequential scan plus a sort. Check with `EXPLAIN (ANALYZE)` before and after adding an index on `(occurred_at DESC, id DESC)`; the filters on `type` may need their own composite. (#4 review; measure it, do not guess.)

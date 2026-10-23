@@ -146,3 +146,16 @@ Written by Claude after reviews and accepted tickets. See [HANDBOOK_GUIDE.md](HA
 - **What changed:** schema metadata, response decorators on `POST /events`.
 - **Lesson:** generated documentation needs a read-through; defaults can be wrong.
 - **Related chapter:** [api-styles.md](topics/api-styles.md)
+
+### 2026-10-22: `GET /events` returns an explicit public shape, not the table row
+- **Issue / PR:** #4 / branch `feat/event-list-4` (PR not opened yet)
+- **Decision:** the repository selects named columns (no internal `id`, no `created_at`); the response schema reuses the `POST` payload schemas (exported from `record-event.dto.ts`) and describes `occurred_at` as an ISO string and `user_id` / `device_id` as nullable. Order is `occurred_at desc, id desc`.
+- **Alternatives considered:** `selectAll()` plus a schema that only documents the public fields (Swagger would lie, and clients could depend on `id`); a second copy of the payload schemas for the response (two places to change per new field).
+- **Reasoning:** whatever a response returns becomes a contract. A field that leaks once is a breaking change to remove. One e2e test asserts the exact key set, because nothing else catches a return to `selectAll()`.
+- **Reviewer feedback:**
+  - BLOCKER (found while wiring): `limit` passed validation but the repository still had `.limit(10)`, so `?limit=100` returned 10 rows with no error. Typecheck and the old e2e test could not see it.
+  - SHOULD-FIX (accepted): the e2e test expected `created_at` order while the code sorted by `occurred_at`; the owner decided on `occurred_at` and the test was rewritten.
+  - SHOULD-FIX (open): no paging beyond the newest `limit` rows, no index for the sort and filters, no e2e test for the `type` and date filters. See the review of #4.
+- **What changed:** `limit` carried from query to SQL; explicit `select`; response schema in `list-events.response.dto.ts`; Swagger documents the response.
+- **Lesson:** a value that is validated but never used fails silently. Follow one parameter from the query string to the SQL before calling it done, and pin the response shape with a test.
+- **Related chapter:** [api-styles.md](topics/api-styles.md), [databases.md](topics/databases.md)
