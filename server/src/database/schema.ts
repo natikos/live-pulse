@@ -15,4 +15,6 @@ export interface EventsTable {
   device_id: string | null;
   created_at: Generated<Date>;
   occurred_at: Date;
+  // Temporary: millisecond-precision replacement for occurred_at, nullable until backfilled.
+  occurred_at_ms: Date | null;
 }

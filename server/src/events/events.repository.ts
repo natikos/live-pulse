@@ -40,7 +40,7 @@ export class EventsRepository {
   async insertEvent(event: EventModel) {
     return this.db
       .insertInto('events')
-      .values(event)
+      .values({ ...event, occurred_at_ms: event.occurred_at })
       .onConflict((oc) => oc.column('event_id').doNothing())
       .execute();
   }
