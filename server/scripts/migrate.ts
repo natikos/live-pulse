@@ -1,12 +1,19 @@
 import 'dotenv/config';
 import * as path from 'node:path';
 import { promises as fs } from 'node:fs';
+import { parseArgs } from 'node:util';
 import { Kysely, PostgresDialect } from 'kysely';
 import { FileMigrationProvider, Migrator } from 'kysely/migration';
 import { Pool } from 'pg';
 
 // Usage: `node scripts/migrate.ts` (up to latest) or `node scripts/migrate.ts down` (revert the last one).
-const direction = process.argv[2] ?? 'up';
+// Add `--no-transaction` to run without transactions, for statements such as CREATE INDEX CONCURRENTLY.
+const { positionals, values } = parseArgs({
+  allowPositionals: true,
+  options: { 'no-transaction': { type: 'boolean', default: false } },
+});
+const direction = positionals[0] ?? 'up';
+const disableTransactions = values['no-transaction'];
 if (direction !== 'up' && direction !== 'down') {
   throw new Error(`Unknown direction "${direction}", expected "up" or "down"`);
 }
@@ -33,8 +40,8 @@ async function migrate() {
 
   const { error, results } =
     direction === 'up'
-      ? await migrator.migrateToLatest()
-      : await migrator.migrateDown();
+      ? await migrator.migrateToLatest({ disableTransactions })
+      : await migrator.migrateDown({ disableTransactions });
 
   results?.forEach((it) => {
     const done = it.direction === 'Up' ? 'applied' : 'reverted';

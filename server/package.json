@@ -24,6 +24,7 @@
     "typecheck": "tsc --noEmit",
     "migrate": "node scripts/migrate.ts",
     "migrate:down": "node scripts/migrate.ts down",
+    "migrate:no-tx": "node scripts/migrate.ts --no-transaction",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
