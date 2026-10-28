@@ -1,13 +1,12 @@
 import z from 'zod';
 import { config } from '../../config.js';
 import { PageId } from '../event.model.js';
+import { MIN_OCCURRED_AT_MS } from './timestamp.js';
 
 const PAGES_NEED_ENTITY_ID: ReadonlySet<string> = new Set([
   'category',
   'item',
 ] satisfies PageId[]);
-
-export const MIN_OCCURRED_AT_MS = 1_000_000_000_000;
 
 const MAX_ID_LENGTH = 128;
 const MAX_CODE_LENGTH = 64;
