@@ -9,7 +9,7 @@ rows written between the dual-write deploy and the start. The final check still 
 non-zero if anything is left NULL; re-running is always safe (idempotent).
 
 Usage:
-    DATABASE_URL=postgresql://... uv run python backfill.py --table events
+    uv run --env-file .env backfill.py --table events
 """
 
 import logging
