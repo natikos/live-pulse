@@ -24,6 +24,7 @@ import {
 import {
   type ListEventsQueryDto,
   listEventsQuerySchema,
+  ListEventsResponseDto,
   listEventsResponseSchema,
 } from './dto/list-events.dto.js';
 
@@ -51,7 +52,7 @@ export class EventsController {
   })
   async listEvents(
     @Query({ schema: listEventsQuerySchema }) query: ListEventsQueryDto,
-  ) {
+  ): Promise<ListEventsResponseDto> {
     return this.eventsService.getEvents(query);
   }
 
