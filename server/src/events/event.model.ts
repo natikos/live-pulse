@@ -62,6 +62,10 @@ export interface EventsFilter {
   from?: Date;
   to?: Date;
   limit: number;
+  cursor?: {
+    occurredAt: Date;
+    id: number;
+  };
 }
 
 // Shared by the model and the DTO, so the page list lives in one place.
