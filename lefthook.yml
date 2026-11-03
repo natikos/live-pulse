@@ -16,9 +16,21 @@ pre-commit:
       root: server/
       glob: "*.ts"
       run: npm run lint
+    scripts-format:
+      root: scripts/
+      glob: "*.py"
+      run: uv run ruff format --check .
+    scripts-lint:
+      root: scripts/
+      glob: "*.py"
+      run: uv run ruff check .
 
 pre-push:
   commands:
+    scripts-typecheck:
+      root: scripts/
+      glob: "*.py"
+      run: uv run pyright
     server-typecheck:
       root: server/
       run: npm run typecheck
