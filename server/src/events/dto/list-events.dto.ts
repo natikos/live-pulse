@@ -6,6 +6,7 @@ import {
   pageViewPayload,
   purchasePayload,
 } from './event-payloads.js';
+import { cursorCodec } from './cursor.js';
 import { MIN_OCCURRED_AT_MS } from './timestamp.js';
 
 // Query values arrive as strings; an empty string would coerce to 0, which the
@@ -15,11 +16,6 @@ const timestampMs = z.coerce
   .int()
   .min(MIN_OCCURRED_AT_MS)
   .transform((ms) => new Date(ms));
-
-const cursorSchema = z.strictObject({
-  occurredAt: timestampMs,
-  id: z.int().min(1),
-});
 
 export const listEventsQuerySchema = z
   .strictObject({
@@ -36,27 +32,11 @@ export const listEventsQuerySchema = z
       description: 'Unix time in milliseconds, inclusive.',
     }),
     limit: z.coerce.number().int().min(1).max(100).default(50),
-    cursor: z
-      .base64url()
-      .optional()
-      .transform((value, ctx) => {
-        if (!value) {
-          return undefined;
-        }
-
-        const decodedCursor = Buffer.from(value, 'base64url').toString('utf8');
-
-        try {
-          const parsed = JSON.parse(decodedCursor);
-          return cursorSchema.parse(parsed);
-        } catch {
-          ctx.addIssue({
-            code: 'custom',
-            message: 'cursor is invalid',
-          });
-          return z.NEVER;
-        }
-      }),
+    // `?cursor=` is treated as absent, so it starts from the first page.
+    cursor: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      cursorCodec.optional(),
+    ),
   })
   .superRefine((query, ctx) => {
     // A value below the minimum already failed the range check, so the
@@ -91,28 +71,34 @@ const responseEnvelope = {
   device_id: z.string().nullable(),
 };
 
-export const listEventsResponseSchema = z
-  .array(
-    z.discriminatedUnion('type', [
-      z.object({
-        ...responseEnvelope,
-        type: z.literal('page_view'),
-        payload: pageViewPayload,
-      }),
-      z.object({
-        ...responseEnvelope,
-        type: z.literal('purchase'),
-        payload: purchasePayload,
-      }),
-      z.object({
-        ...responseEnvelope,
-        type: z.literal('error'),
-        payload: errorPayload,
-      }),
-    ]),
-  )
-  .meta({
+export const listEventsItemSchema = z.discriminatedUnion('type', [
+  z.object({
+    ...responseEnvelope,
+    type: z.literal('page_view'),
+    payload: pageViewPayload,
+  }),
+  z.object({
+    ...responseEnvelope,
+    type: z.literal('purchase'),
+    payload: purchasePayload,
+  }),
+  z.object({
+    ...responseEnvelope,
+    type: z.literal('error'),
+    payload: errorPayload,
+  }),
+]);
+
+export type ListEventsItemDto = z.infer<typeof listEventsItemSchema>;
+
+export const listEventsResponseSchema = z.object({
+  items: z.array(listEventsItemSchema).meta({
     description: 'Newest first by `occurred_at`, at most `limit` items.',
-  });
+  }),
+  nextCursor: z.string().nullable().meta({
+    description:
+      'Opaque. Pass as `cursor` to get the next page; `null` when there are no more events.',
+  }),
+});
 
 export type ListEventsResponseDto = z.infer<typeof listEventsResponseSchema>;
