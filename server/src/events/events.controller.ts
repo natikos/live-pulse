@@ -23,9 +23,9 @@ import {
 } from '@nestjs/swagger';
 import {
   type ListEventsQueryDto,
-  listEventsSchema,
+  listEventsQuerySchema,
+  listEventsResponseSchema,
 } from './dto/list-events.dto.js';
-import { listEventsResponseSchema } from './dto/list-events.response.dto.js';
 
 @Controller('events')
 export class EventsController {
@@ -50,7 +50,7 @@ export class EventsController {
       'The query is invalid. `message` lists each problem as "field: reason".',
   })
   async listEvents(
-    @Query({ schema: listEventsSchema }) query: ListEventsQueryDto,
+    @Query({ schema: listEventsQuerySchema }) query: ListEventsQueryDto,
   ) {
     return this.eventsService.getEvents(query);
   }

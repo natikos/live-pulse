@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { listEventsSchema } from './list-events.dto.js';
+import { listEventsQuerySchema } from './list-events.dto.js';
 import { MIN_OCCURRED_AT_MS } from './timestamp.js';
 
 const START = 1_767_225_600_000;
@@ -10,15 +10,15 @@ function encodeToBase64Url(payload: unknown) {
 
 // The message is volatile, so only the code and the path are pinned.
 function expectInvalidCursor(cursor: string) {
-  const { success, error } = listEventsSchema.safeParse({ cursor });
+  const { success, error } = listEventsQuerySchema.safeParse({ cursor });
   expect(success).toBe(false);
   expect(error?.issues).toMatchObject([{ code: 'custom', path: ['cursor'] }]);
 }
 
-describe('listEventsSchema', () => {
+describe('listEventsQuerySchema', () => {
   describe('valid input', () => {
     it('accepts an empty query', () => {
-      const { success, data } = listEventsSchema.safeParse({});
+      const { success, data } = listEventsQuerySchema.safeParse({});
 
       expect(success).toBe(true);
       expect(data?.startDate).toBeUndefined();
@@ -26,7 +26,7 @@ describe('listEventsSchema', () => {
     });
 
     it('defaults limit to 50', () => {
-      expect(listEventsSchema.parse({}).limit).toBe(50);
+      expect(listEventsQuerySchema.parse({}).limit).toBe(50);
     });
 
     it.each([
@@ -34,18 +34,20 @@ describe('listEventsSchema', () => {
       ['20', 20],
       ['100', 100],
     ])('converts limit string %j from the query string to %d', (raw, limit) => {
-      expect(listEventsSchema.parse({ limit: raw }).limit).toBe(limit);
+      expect(listEventsQuerySchema.parse({ limit: raw }).limit).toBe(limit);
     });
 
     it('wraps a single type into an array', () => {
-      const { success, data } = listEventsSchema.safeParse({ type: 'error' });
+      const { success, data } = listEventsQuerySchema.safeParse({
+        type: 'error',
+      });
 
       expect(success).toBe(true);
       expect(data?.type).toEqual(['error']);
     });
 
     it('accepts several types', () => {
-      const { success, data } = listEventsSchema.safeParse({
+      const { success, data } = listEventsQuerySchema.safeParse({
         type: ['page_view', 'purchase'],
       });
 
@@ -54,7 +56,7 @@ describe('listEventsSchema', () => {
     });
 
     it('converts timestamp strings from the query string to Date', () => {
-      const { success, data } = listEventsSchema.safeParse({
+      const { success, data } = listEventsQuerySchema.safeParse({
         startDate: String(START),
         endDate: String(START + 1),
       });
@@ -68,15 +70,15 @@ describe('listEventsSchema', () => {
 
     it('accepts only one of the two dates', () => {
       expect(
-        listEventsSchema.safeParse({ startDate: String(START) }).success,
+        listEventsQuerySchema.safeParse({ startDate: String(START) }).success,
       ).toBe(true);
       expect(
-        listEventsSchema.safeParse({ endDate: String(START) }).success,
+        listEventsQuerySchema.safeParse({ endDate: String(START) }).success,
       ).toBe(true);
     });
 
     it('accepts startDate equal to endDate', () => {
-      const result = listEventsSchema.safeParse({
+      const result = listEventsQuerySchema.safeParse({
         startDate: String(START),
         endDate: String(START),
       });
@@ -87,22 +89,26 @@ describe('listEventsSchema', () => {
 
   describe('invalid input', () => {
     it('rejects an unknown type', () => {
-      expect(listEventsSchema.safeParse({ type: 'click' }).success).toBe(false);
+      expect(listEventsQuerySchema.safeParse({ type: 'click' }).success).toBe(
+        false,
+      );
     });
 
     it('rejects an unknown key', () => {
-      expect(listEventsSchema.safeParse({ offset: '10' }).success).toBe(false);
+      expect(listEventsQuerySchema.safeParse({ offset: '10' }).success).toBe(
+        false,
+      );
     });
 
     it.each(['0', '-1', '101', '', 'abc', '1.5'])(
       'rejects limit=%j',
       (limit) => {
-        expect(listEventsSchema.safeParse({ limit }).success).toBe(false);
+        expect(listEventsQuerySchema.safeParse({ limit }).success).toBe(false);
       },
     );
 
     it('rejects a timestamp in seconds', () => {
-      const result = listEventsSchema.safeParse({
+      const result = listEventsQuerySchema.safeParse({
         startDate: String(Math.floor(START / 1000)),
       });
 
@@ -110,23 +116,25 @@ describe('listEventsSchema', () => {
     });
 
     it('rejects an empty date instead of treating it as 0', () => {
-      expect(listEventsSchema.safeParse({ startDate: '' }).success).toBe(false);
+      expect(listEventsQuerySchema.safeParse({ startDate: '' }).success).toBe(
+        false,
+      );
     });
 
     it('rejects a non-numeric date', () => {
       expect(
-        listEventsSchema.safeParse({ endDate: '2026-01-01' }).success,
+        listEventsQuerySchema.safeParse({ endDate: '2026-01-01' }).success,
       ).toBe(false);
     });
 
     it('rejects a fractional timestamp', () => {
       expect(
-        listEventsSchema.safeParse({ startDate: `${START}.5` }).success,
+        listEventsQuerySchema.safeParse({ startDate: `${START}.5` }).success,
       ).toBe(false);
     });
 
     it('rejects startDate later than endDate and points at endDate', () => {
-      const result = listEventsSchema.safeParse({
+      const result = listEventsQuerySchema.safeParse({
         startDate: String(START + 1),
         endDate: String(START),
       });
@@ -138,7 +146,7 @@ describe('listEventsSchema', () => {
     });
 
     it('does not report the range error when a date is already invalid', () => {
-      const result = listEventsSchema.safeParse({
+      const result = listEventsQuerySchema.safeParse({
         startDate: String(START),
         endDate: '1',
       });
@@ -151,7 +159,7 @@ describe('listEventsSchema', () => {
 
   describe('cursor', () => {
     it('leaves cursor undefined when the query has none', () => {
-      const { success, data } = listEventsSchema.safeParse({});
+      const { success, data } = listEventsQuerySchema.safeParse({});
       expect(success).toBe(true);
       expect(data?.cursor).toBe(undefined);
     });
@@ -159,7 +167,7 @@ describe('listEventsSchema', () => {
     it('decodes a valid token into occurredAt (Date) and id', () => {
       const cursorPayload = { occurredAt: START + 123, id: 2 };
       const cursor = encodeToBase64Url(cursorPayload);
-      const data = listEventsSchema.parse({ cursor });
+      const data = listEventsQuerySchema.parse({ cursor });
       expect(data.cursor?.occurredAt).toEqual(
         new Date(cursorPayload.occurredAt),
       );
@@ -169,7 +177,7 @@ describe('listEventsSchema', () => {
     it('accepts the minimum occurredAt and id 1', () => {
       const cursorPayload = { occurredAt: MIN_OCCURRED_AT_MS, id: 1 };
       const cursor = encodeToBase64Url(cursorPayload);
-      const data = listEventsSchema.parse({ cursor });
+      const data = listEventsQuerySchema.parse({ cursor });
       expect(data.cursor?.occurredAt).toEqual(
         new Date(cursorPayload.occurredAt),
       );
@@ -184,7 +192,7 @@ describe('listEventsSchema', () => {
       ['percent signs', '%%%'],
       ['a length that base64 cannot have', 'abcde'],
     ])('rejects a string that is not base64url: %s', (_label, cursor) => {
-      const { success, error } = listEventsSchema.safeParse({ cursor });
+      const { success, error } = listEventsQuerySchema.safeParse({ cursor });
       expect(success).toBe(false);
       expect(error?.issues).toMatchObject([
         { code: 'invalid_format', format: 'base64url', path: ['cursor'] },
@@ -242,12 +250,12 @@ describe('listEventsSchema', () => {
     // An empty value is treated like a missing one, so `?cursor=` starts from
     // the first page instead of failing the request.
     it('treats an empty cursor as absent', () => {
-      const data = listEventsSchema.parse({ cursor: '' });
+      const data = listEventsQuerySchema.parse({ cursor: '' });
       expect(data.cursor).toBeUndefined();
     });
 
     it('points the error at cursor and reports it only once', () => {
-      const { error } = listEventsSchema.safeParse({
+      const { error } = listEventsQuerySchema.safeParse({
         cursor: encodeToBase64Url({ occurredAt: 'abc', id: 0 }),
       });
       expect(error?.issues).toHaveLength(1);
@@ -255,7 +263,7 @@ describe('listEventsSchema', () => {
     });
 
     it('parses together with type, startDate, endDate and limit', () => {
-      const data = listEventsSchema.parse({
+      const data = listEventsQuerySchema.parse({
         cursor: encodeToBase64Url({ occurredAt: START + 5, id: 7 }),
         type: 'error',
         startDate: String(START),
@@ -272,7 +280,7 @@ describe('listEventsSchema', () => {
     });
 
     it('reports a bad cursor and a bad date at the same time', () => {
-      const { error } = listEventsSchema.safeParse({
+      const { error } = listEventsQuerySchema.safeParse({
         cursor: Buffer.from('not json').toString('base64url'),
         startDate: 'abc',
       });
@@ -283,7 +291,7 @@ describe('listEventsSchema', () => {
 
     it('round-trips occurredAt with non-zero milliseconds through encode', () => {
       const occurredAt = START + 999;
-      const data = listEventsSchema.parse({
+      const data = listEventsQuerySchema.parse({
         cursor: encodeToBase64Url({ occurredAt, id: 1 }),
       });
       expect(data.cursor?.occurredAt.getTime()).toBe(occurredAt);

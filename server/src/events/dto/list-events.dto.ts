@@ -1,4 +1,11 @@
 import z from 'zod';
+import {
+  errorPayload,
+  eventSource,
+  eventType,
+  pageViewPayload,
+  purchasePayload,
+} from './event-payloads.js';
 import { MIN_OCCURRED_AT_MS } from './timestamp.js';
 
 // Query values arrive as strings; an empty string would coerce to 0, which the
@@ -14,17 +21,14 @@ const cursorSchema = z.strictObject({
   id: z.int().min(1),
 });
 
-export const listEventsSchema = z
+export const listEventsQuerySchema = z
   .strictObject({
-    type: z.preprocess(
-      (value) => {
-        if (value && !Array.isArray(value)) {
-          return [value];
-        }
-        return value;
-      },
-      z.array(z.enum(['page_view', 'purchase', 'error'])).optional(),
-    ),
+    type: z.preprocess((value) => {
+      if (value && !Array.isArray(value)) {
+        return [value];
+      }
+      return value;
+    }, z.array(eventType).optional()),
     startDate: timestampMs.optional().meta({
       description: 'Unix time in milliseconds, inclusive.',
     }),
@@ -72,4 +76,43 @@ export const listEventsSchema = z
     }
   });
 
-export type ListEventsQueryDto = z.infer<typeof listEventsSchema>;
+export type ListEventsQueryDto = z.infer<typeof listEventsQuerySchema>;
+
+// What the API returns, not what the table stores: no internal id and no
+// created_at. Dates are ISO strings because that is how a Date is serialised.
+const responseEnvelope = {
+  event_id: z.uuid(),
+  source: eventSource,
+  occurred_at: z.iso.datetime().meta({
+    description: 'ISO 8601, UTC.',
+    example: '2026-10-20T12:00:00.000Z',
+  }),
+  user_id: z.string().nullable(),
+  device_id: z.string().nullable(),
+};
+
+export const listEventsResponseSchema = z
+  .array(
+    z.discriminatedUnion('type', [
+      z.object({
+        ...responseEnvelope,
+        type: z.literal('page_view'),
+        payload: pageViewPayload,
+      }),
+      z.object({
+        ...responseEnvelope,
+        type: z.literal('purchase'),
+        payload: purchasePayload,
+      }),
+      z.object({
+        ...responseEnvelope,
+        type: z.literal('error'),
+        payload: errorPayload,
+      }),
+    ]),
+  )
+  .meta({
+    description: 'Newest first by `occurred_at`, at most `limit` items.',
+  });
+
+export type ListEventsResponseDto = z.infer<typeof listEventsResponseSchema>;
