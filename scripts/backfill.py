@@ -15,11 +15,12 @@ Usage:
 import logging
 import os
 import time
-from typing import Annotated
+from typing import Annotated, Any
 
 import psycopg
 import typer
 from psycopg import sql
+from psycopg.abc import Params, QueryNoTemplate
 from psycopg.errors import DeadlockDetected, LockNotAvailable, SerializationFailure
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -36,23 +37,40 @@ def table_ident(table: str) -> sql.Identifier:
     return sql.Identifier(table)
 
 
+def fetch_row(
+    connection: psycopg.Connection, query: QueryNoTemplate, params: Params | None = None
+) -> tuple[Any, ...]:
+    """Run a query that must return exactly one row (aggregates, current_*, stats lookups).
+
+    fetchone() is typed as returning None for an empty result; fail with the query in the
+    message instead of a TypeError on unpacking.
+    """
+    row = connection.execute(query, params).fetchone()
+    if row is None:
+        raise RuntimeError(f"expected one row, got none: {query!r}")
+    return row
+
+
 def log_stats(connection: psycopg.Connection, table: str, label: str) -> int:
     ident = table_ident(table)
-    to_fill, total = connection.execute(
+    to_fill, total = fetch_row(
+        connection,
         sql.SQL("SELECT count(*) FILTER (WHERE occurred_at_ms IS NULL), count(*) FROM {}").format(
             ident
-        )
-    ).fetchone()
-    size, size_pretty = connection.execute(
+        ),
+    )
+    size, size_pretty = fetch_row(
+        connection,
         "SELECT pg_total_relation_size(%s::regclass), "
         "pg_size_pretty(pg_total_relation_size(%s::regclass))",
         (table, table),
-    ).fetchone()
-    live, dead, last_autovacuum, last_vacuum, autovacuum_count = connection.execute(
+    )
+    live, dead, last_autovacuum, last_vacuum, autovacuum_count = fetch_row(
+        connection,
         "SELECT n_live_tup, n_dead_tup, last_autovacuum, last_vacuum, autovacuum_count "
         "FROM pg_stat_user_tables WHERE relid = %s::regclass",
         (table,),
-    ).fetchone()
+    )
     log.info("%s: to_fill=%d total=%d", label, to_fill, total)
     log.info("%s: table_size=%d (%s)", label, size, size_pretty)
     log.info(
@@ -68,10 +86,11 @@ def log_stats(connection: psycopg.Connection, table: str, label: str) -> int:
 
 
 def dead_ratio(connection: psycopg.Connection, table: str) -> float:
-    live, dead = connection.execute(
+    live, dead = fetch_row(
+        connection,
         "SELECT n_live_tup, n_dead_tup FROM pg_stat_user_tables WHERE relid = %s::regclass",
         (table,),
-    ).fetchone()
+    )
     return dead / max(live, 1)
 
 
@@ -146,9 +165,9 @@ def backfill(
     # autocommit: session settings must not be rolled back with a batch; each batch opens its
     # own explicit transaction in run_batch.
     with psycopg.connect(os.environ["DATABASE_URL"], autocommit=True) as connection:
-        db, user, schema = connection.execute(
-            "SELECT current_database(), current_user, current_schema()"
-        ).fetchone()
+        db, user, schema = fetch_row(
+            connection, "SELECT current_database(), current_user, current_schema()"
+        )
         log.info(
             "target: db=%s user=%s schema=%s table=%s batch_size=%d",
             db,
