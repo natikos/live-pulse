@@ -162,6 +162,10 @@ Goal: feel the cost of distribution and learn the patterns that pay it.
   - Topic: evolving event schemas.
   - Done when: an event change is rolled out with old and new consumers running side by side.
   - Prepares for: backward/forward compatibility.
+- [ ] **Alert-service on MongoDB** [N][I]
+  - Topic: document data model for alert rules (nested conditions, channels, escalation); schema per service with a different engine.
+  - Done when: alert rules live in MongoDB owned only by alert-service; every query is backed by an index proven with `explain()`; the choice of Mongo over Postgres is justified in DECISIONS.md, including what was given up.
+  - Prepares for: SQL vs NoSQL, document modeling (embed vs reference), polyglot persistence.
 - [ ] **Independent deploy** [I]
   - Topic: rolling restart of one service.
   - Done when: restarting one service causes no data loss and no user-visible outage.
