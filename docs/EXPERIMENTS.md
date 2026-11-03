@@ -134,3 +134,9 @@ Status: `[ ]` not done, `[x]` done. Language: **[P]** Python script, **[N]** Nes
 - [ ] **Hypothesis:** gRPC (protobuf, HTTP/2) is smaller and faster than JSON over REST for the same call.
 - **Reproduce:** same query served both ways; measure payload bytes and latency at several concurrency levels.
 - **I should explain:** where the gain comes from, when it does not matter, the cost (tooling, browser support, debuggability).
+
+### E19. Same workload, two databases: Postgres vs MongoDB (any stage after 2) [P][I]
+- [ ] **Hypothesis:** for append-heavy time-series events with time-range queries, a partitioned Postgres table and a MongoDB time-series collection perform within the same order of magnitude; the real differences are in modeling, aggregations and consistency, not raw speed.
+- **Reproduce:** load the same generated events into both (side copy, not the production path); run the same queries (time range, group by type, top-N) and a Locust write load.
+- **Observe:** write throughput, p95 read latency, storage size, `EXPLAIN` vs `explain()` plans, effort to express each query.
+- **I should explain:** when I would pick each and why; ESR rule for compound indexes; write/read concern vs isolation levels; shard key vs partition key.

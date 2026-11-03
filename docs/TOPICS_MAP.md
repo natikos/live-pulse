@@ -31,3 +31,6 @@ Question people ask -> what I do in the project -> where it lives.
 | Which React patterns do you use and why? | Custom hook `useEventStream`, composition, context + reducer, error boundary, lazy | [typescript-react-patterns](topics/typescript-react-patterns.md); Stage 3 |
 | How do you evolve an event schema safely? | Change a schema, watch consumers break, apply backward-compatible rules | [microservices](topics/microservices.md); Exp: schema change |
 | How do you deploy without downtime? | Rolling restart of one service while the rest keep working | [microservices](topics/microservices.md); Exp: rolling restart |
+| SQL vs NoSQL: when MongoDB, when Postgres? | Benchmark the same event workload on both; give alert-service its own MongoDB in Stage 5 and justify it | [databases](topics/databases.md), [technology-fit](topics/technology-fit.md); Exp: Postgres vs MongoDB; Stage 5 |
+| How do you model data in MongoDB? Indexes, aggregation? | Embed vs reference for alert rules; compound indexes by the ESR rule, checked with `explain()`; aggregation pipeline for reports | [databases](topics/databases.md); Exp: Postgres vs MongoDB; Stage 5 |
+| Write concern, read concern, replica set failover? | Run a replica set, kill the primary during writes, compare `w:1` vs `w:majority` | [databases](topics/databases.md); Stage 5 |
