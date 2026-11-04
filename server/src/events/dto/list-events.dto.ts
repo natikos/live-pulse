@@ -71,23 +71,25 @@ const responseEnvelope = {
   device_id: z.string().nullable(),
 };
 
-export const listEventsItemSchema = z.discriminatedUnion('type', [
-  z.object({
-    ...responseEnvelope,
-    type: z.literal('page_view'),
-    payload: pageViewPayload,
-  }),
-  z.object({
-    ...responseEnvelope,
-    type: z.literal('purchase'),
-    payload: purchasePayload,
-  }),
-  z.object({
-    ...responseEnvelope,
-    type: z.literal('error'),
-    payload: errorPayload,
-  }),
-]);
+export const listEventsItemSchema = z
+  .discriminatedUnion('type', [
+    z.object({
+      ...responseEnvelope,
+      type: z.literal('page_view'),
+      payload: pageViewPayload,
+    }),
+    z.object({
+      ...responseEnvelope,
+      type: z.literal('purchase'),
+      payload: purchasePayload,
+    }),
+    z.object({
+      ...responseEnvelope,
+      type: z.literal('error'),
+      payload: errorPayload,
+    }),
+  ])
+  .meta({ id: 'StoredEvent' });
 
 export type ListEventsItemDto = z.infer<typeof listEventsItemSchema>;
 

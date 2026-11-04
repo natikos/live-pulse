@@ -94,279 +94,7 @@
                     "items": {
                       "type": "array",
                       "items": {
-                        "oneOf": [
-                          {
-                            "type": "object",
-                            "properties": {
-                              "event_id": {
-                                "type": "string",
-                                "format": "uuid",
-                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                              },
-                              "source": {
-                                "type": "string",
-                                "enum": [
-                                  "web",
-                                  "mobile",
-                                  "server"
-                                ]
-                              },
-                              "occurred_at": {
-                                "type": "string",
-                                "format": "date-time",
-                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                "description": "ISO 8601, UTC.",
-                                "example": "2026-10-20T12:00:00.000Z"
-                              },
-                              "user_id": {
-                                "nullable": true,
-                                "type": "string"
-                              },
-                              "device_id": {
-                                "nullable": true,
-                                "type": "string"
-                              },
-                              "type": {
-                                "type": "string",
-                                "enum": [
-                                  "page_view"
-                                ]
-                              },
-                              "payload": {
-                                "type": "object",
-                                "properties": {
-                                  "page_id": {
-                                    "type": "string",
-                                    "minLength": 1,
-                                    "maxLength": 128
-                                  },
-                                  "entity_id": {
-                                    "type": "string",
-                                    "minLength": 1,
-                                    "maxLength": 128
-                                  },
-                                  "referrer": {
-                                    "type": "string",
-                                    "maxLength": 2048
-                                  },
-                                  "utm_source": {
-                                    "type": "string",
-                                    "maxLength": 128
-                                  },
-                                  "utm_medium": {
-                                    "type": "string",
-                                    "maxLength": 128
-                                  },
-                                  "utm_campaign": {
-                                    "type": "string",
-                                    "maxLength": 128
-                                  }
-                                },
-                                "required": [
-                                  "page_id"
-                                ],
-                                "additionalProperties": false
-                              }
-                            },
-                            "required": [
-                              "event_id",
-                              "source",
-                              "occurred_at",
-                              "user_id",
-                              "device_id",
-                              "type",
-                              "payload"
-                            ],
-                            "additionalProperties": false
-                          },
-                          {
-                            "type": "object",
-                            "properties": {
-                              "event_id": {
-                                "type": "string",
-                                "format": "uuid",
-                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                              },
-                              "source": {
-                                "type": "string",
-                                "enum": [
-                                  "web",
-                                  "mobile",
-                                  "server"
-                                ]
-                              },
-                              "occurred_at": {
-                                "type": "string",
-                                "format": "date-time",
-                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                "description": "ISO 8601, UTC.",
-                                "example": "2026-10-20T12:00:00.000Z"
-                              },
-                              "user_id": {
-                                "nullable": true,
-                                "type": "string"
-                              },
-                              "device_id": {
-                                "nullable": true,
-                                "type": "string"
-                              },
-                              "type": {
-                                "type": "string",
-                                "enum": [
-                                  "purchase"
-                                ]
-                              },
-                              "payload": {
-                                "type": "object",
-                                "properties": {
-                                  "order_id": {
-                                    "type": "string",
-                                    "minLength": 1,
-                                    "maxLength": 128
-                                  },
-                                  "channel": {
-                                    "type": "string",
-                                    "enum": [
-                                      "app",
-                                      "phone",
-                                      "admin"
-                                    ]
-                                  },
-                                  "sum": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "exclusiveMinimum": true,
-                                    "maximum": 9007199254740991
-                                  },
-                                  "items": {
-                                    "minItems": 1,
-                                    "maxItems": 100,
-                                    "type": "array",
-                                    "items": {
-                                      "type": "object",
-                                      "properties": {
-                                        "id": {
-                                          "type": "string",
-                                          "minLength": 1,
-                                          "maxLength": 128
-                                        },
-                                        "unit_price": {
-                                          "type": "integer",
-                                          "minimum": 0,
-                                          "exclusiveMinimum": true,
-                                          "maximum": 9007199254740991
-                                        },
-                                        "quantity": {
-                                          "type": "integer",
-                                          "minimum": 0,
-                                          "exclusiveMinimum": true,
-                                          "maximum": 100000
-                                        }
-                                      },
-                                      "required": [
-                                        "id",
-                                        "unit_price",
-                                        "quantity"
-                                      ],
-                                      "additionalProperties": false
-                                    }
-                                  }
-                                },
-                                "required": [
-                                  "order_id",
-                                  "channel",
-                                  "sum",
-                                  "items"
-                                ],
-                                "additionalProperties": false
-                              }
-                            },
-                            "required": [
-                              "event_id",
-                              "source",
-                              "occurred_at",
-                              "user_id",
-                              "device_id",
-                              "type",
-                              "payload"
-                            ],
-                            "additionalProperties": false
-                          },
-                          {
-                            "type": "object",
-                            "properties": {
-                              "event_id": {
-                                "type": "string",
-                                "format": "uuid",
-                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                              },
-                              "source": {
-                                "type": "string",
-                                "enum": [
-                                  "web",
-                                  "mobile",
-                                  "server"
-                                ]
-                              },
-                              "occurred_at": {
-                                "type": "string",
-                                "format": "date-time",
-                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-                                "description": "ISO 8601, UTC.",
-                                "example": "2026-10-20T12:00:00.000Z"
-                              },
-                              "user_id": {
-                                "nullable": true,
-                                "type": "string"
-                              },
-                              "device_id": {
-                                "nullable": true,
-                                "type": "string"
-                              },
-                              "type": {
-                                "type": "string",
-                                "enum": [
-                                  "error"
-                                ]
-                              },
-                              "payload": {
-                                "type": "object",
-                                "properties": {
-                                  "operation": {
-                                    "type": "string",
-                                    "minLength": 1,
-                                    "maxLength": 64
-                                  },
-                                  "code": {
-                                    "type": "string",
-                                    "minLength": 1,
-                                    "maxLength": 64
-                                  },
-                                  "page_id": {
-                                    "type": "string",
-                                    "minLength": 1,
-                                    "maxLength": 128
-                                  }
-                                },
-                                "required": [
-                                  "operation",
-                                  "code"
-                                ],
-                                "additionalProperties": false
-                              }
-                            },
-                            "required": [
-                              "event_id",
-                              "source",
-                              "occurred_at",
-                              "user_id",
-                              "device_id",
-                              "type",
-                              "payload"
-                            ],
-                            "additionalProperties": false
-                          }
-                        ]
+                        "$ref": "#/components/schemas/StoredEvent"
                       },
                       "description": "Newest first by `occurred_at`, at most `limit` items."
                     },
@@ -755,6 +483,282 @@
   "tags": [],
   "servers": [],
   "components": {
-    "schemas": {}
+    "schemas": {
+      "StoredEvent": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "web",
+                  "mobile",
+                  "server"
+                ]
+              },
+              "occurred_at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "description": "ISO 8601, UTC.",
+                "example": "2026-10-20T12:00:00.000Z"
+              },
+              "user_id": {
+                "nullable": true,
+                "type": "string"
+              },
+              "device_id": {
+                "nullable": true,
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "page_view"
+                ]
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "page_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "entity_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "referrer": {
+                    "type": "string",
+                    "maxLength": 2048
+                  },
+                  "utm_source": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "utm_medium": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "utm_campaign": {
+                    "type": "string",
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "page_id"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "event_id",
+              "source",
+              "occurred_at",
+              "user_id",
+              "device_id",
+              "type",
+              "payload"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "web",
+                  "mobile",
+                  "server"
+                ]
+              },
+              "occurred_at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "description": "ISO 8601, UTC.",
+                "example": "2026-10-20T12:00:00.000Z"
+              },
+              "user_id": {
+                "nullable": true,
+                "type": "string"
+              },
+              "device_id": {
+                "nullable": true,
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "purchase"
+                ]
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "order_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "channel": {
+                    "type": "string",
+                    "enum": [
+                      "app",
+                      "phone",
+                      "admin"
+                    ]
+                  },
+                  "sum": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  },
+                  "items": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        "unit_price": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true,
+                          "maximum": 100000
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "unit_price",
+                        "quantity"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "order_id",
+                  "channel",
+                  "sum",
+                  "items"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "event_id",
+              "source",
+              "occurred_at",
+              "user_id",
+              "device_id",
+              "type",
+              "payload"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "web",
+                  "mobile",
+                  "server"
+                ]
+              },
+              "occurred_at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "description": "ISO 8601, UTC.",
+                "example": "2026-10-20T12:00:00.000Z"
+              },
+              "user_id": {
+                "nullable": true,
+                "type": "string"
+              },
+              "device_id": {
+                "nullable": true,
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "error"
+                ]
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "operation": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "page_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "operation",
+                  "code"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "event_id",
+              "source",
+              "occurred_at",
+              "user_id",
+              "device_id",
+              "type",
+              "payload"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
   }
 }

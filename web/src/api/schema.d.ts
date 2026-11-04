@@ -47,7 +47,78 @@ export interface paths {
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: never;
+    schemas: {
+        StoredEvent: {
+            /** Format: uuid */
+            event_id: string;
+            /** @enum {string} */
+            source: "web" | "mobile" | "server";
+            /**
+             * Format: date-time
+             * @description ISO 8601, UTC.
+             * @example 2026-10-20T12:00:00.000Z
+             */
+            occurred_at: string;
+            user_id: string | null;
+            device_id: string | null;
+            /** @enum {string} */
+            type: "page_view";
+            payload: {
+                page_id: string;
+                entity_id?: string;
+                referrer?: string;
+                utm_source?: string;
+                utm_medium?: string;
+                utm_campaign?: string;
+            };
+        } | {
+            /** Format: uuid */
+            event_id: string;
+            /** @enum {string} */
+            source: "web" | "mobile" | "server";
+            /**
+             * Format: date-time
+             * @description ISO 8601, UTC.
+             * @example 2026-10-20T12:00:00.000Z
+             */
+            occurred_at: string;
+            user_id: string | null;
+            device_id: string | null;
+            /** @enum {string} */
+            type: "purchase";
+            payload: {
+                order_id: string;
+                /** @enum {string} */
+                channel: "app" | "phone" | "admin";
+                sum: number;
+                items: {
+                    id: string;
+                    unit_price: number;
+                    quantity: number;
+                }[];
+            };
+        } | {
+            /** Format: uuid */
+            event_id: string;
+            /** @enum {string} */
+            source: "web" | "mobile" | "server";
+            /**
+             * Format: date-time
+             * @description ISO 8601, UTC.
+             * @example 2026-10-20T12:00:00.000Z
+             */
+            occurred_at: string;
+            user_id: string | null;
+            device_id: string | null;
+            /** @enum {string} */
+            type: "error";
+            payload: {
+                operation: string;
+                code: string;
+                page_id?: string;
+            };
+        };
+    };
     responses: never;
     parameters: never;
     requestBodies: never;
@@ -98,76 +169,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         /** @description Newest first by `occurred_at`, at most `limit` items. */
-                        items: ({
-                            /** Format: uuid */
-                            event_id: string;
-                            /** @enum {string} */
-                            source: "web" | "mobile" | "server";
-                            /**
-                             * Format: date-time
-                             * @description ISO 8601, UTC.
-                             * @example 2026-10-20T12:00:00.000Z
-                             */
-                            occurred_at: string;
-                            user_id: string | null;
-                            device_id: string | null;
-                            /** @enum {string} */
-                            type: "page_view";
-                            payload: {
-                                page_id: string;
-                                entity_id?: string;
-                                referrer?: string;
-                                utm_source?: string;
-                                utm_medium?: string;
-                                utm_campaign?: string;
-                            };
-                        } | {
-                            /** Format: uuid */
-                            event_id: string;
-                            /** @enum {string} */
-                            source: "web" | "mobile" | "server";
-                            /**
-                             * Format: date-time
-                             * @description ISO 8601, UTC.
-                             * @example 2026-10-20T12:00:00.000Z
-                             */
-                            occurred_at: string;
-                            user_id: string | null;
-                            device_id: string | null;
-                            /** @enum {string} */
-                            type: "purchase";
-                            payload: {
-                                order_id: string;
-                                /** @enum {string} */
-                                channel: "app" | "phone" | "admin";
-                                sum: number;
-                                items: {
-                                    id: string;
-                                    unit_price: number;
-                                    quantity: number;
-                                }[];
-                            };
-                        } | {
-                            /** Format: uuid */
-                            event_id: string;
-                            /** @enum {string} */
-                            source: "web" | "mobile" | "server";
-                            /**
-                             * Format: date-time
-                             * @description ISO 8601, UTC.
-                             * @example 2026-10-20T12:00:00.000Z
-                             */
-                            occurred_at: string;
-                            user_id: string | null;
-                            device_id: string | null;
-                            /** @enum {string} */
-                            type: "error";
-                            payload: {
-                                operation: string;
-                                code: string;
-                                page_id?: string;
-                            };
-                        })[];
+                        items: components["schemas"]["StoredEvent"][];
                         /** @description Opaque. Pass as `cursor` to get the next page; `null` when there are no more events. */
                         nextCursor: string | null;
                     };
