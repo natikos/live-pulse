@@ -27,7 +27,7 @@ const envelope = {
   occurred_at: z.int().min(MIN_OCCURRED_AT_MS).meta({
     description:
       'Unix time in milliseconds. Rejected if too far ahead of the server clock or too old (limits are configurable).',
-    example: Date.now(),
+    example: 1760961600000,
   }),
   user_id: z.string().min(1).max(MAX_ID_LENGTH).optional(),
   device_id: z.string().min(1).max(MAX_ID_LENGTH).optional(),

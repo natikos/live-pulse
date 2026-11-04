@@ -24,6 +24,7 @@
     "typecheck": "tsc --noEmit",
     "migrate": "node scripts/migrate.ts",
     "migrate:down": "node scripts/migrate.ts down",
+    "openapi:export": "nest build && node dist/export-openapi.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",

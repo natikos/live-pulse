@@ -1,0 +1,760 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "AppController_getHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "App"
+        ]
+      }
+    },
+    "/events": {
+      "get": {
+        "description": "Filters are optional and combined with AND. `type` may be repeated (`?type=error&type=purchase`). `startDate` and `endDate` are Unix time in milliseconds, inclusive; `startDate` must not be later than `endDate`. Events are returned newest first by `occurred_at`; `limit` caps how many (1-100, default 50). Unknown query keys are rejected.",
+        "operationId": "EventsController_listEvents",
+        "parameters": [
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "page_view",
+                  "purchase",
+                  "error"
+                ]
+              }
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Unix time in milliseconds, inclusive.",
+            "schema": {
+              "description": "Unix time in milliseconds, inclusive.",
+              "type": "integer",
+              "minimum": 1000000000000,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "Unix time in milliseconds, inclusive.",
+            "schema": {
+              "description": "Unix time in milliseconds, inclusive.",
+              "type": "integer",
+              "minimum": 1000000000000,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "base64url",
+              "contentEncoding": "base64url",
+              "pattern": "^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2,3})?$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The matching events.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "event_id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "source": {
+                                "type": "string",
+                                "enum": [
+                                  "web",
+                                  "mobile",
+                                  "server"
+                                ]
+                              },
+                              "occurred_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                "description": "ISO 8601, UTC.",
+                                "example": "2026-10-20T12:00:00.000Z"
+                              },
+                              "user_id": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "device_id": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "page_view"
+                                ]
+                              },
+                              "payload": {
+                                "type": "object",
+                                "properties": {
+                                  "page_id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 128
+                                  },
+                                  "entity_id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 128
+                                  },
+                                  "referrer": {
+                                    "type": "string",
+                                    "maxLength": 2048
+                                  },
+                                  "utm_source": {
+                                    "type": "string",
+                                    "maxLength": 128
+                                  },
+                                  "utm_medium": {
+                                    "type": "string",
+                                    "maxLength": 128
+                                  },
+                                  "utm_campaign": {
+                                    "type": "string",
+                                    "maxLength": 128
+                                  }
+                                },
+                                "required": [
+                                  "page_id"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "event_id",
+                              "source",
+                              "occurred_at",
+                              "user_id",
+                              "device_id",
+                              "type",
+                              "payload"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "event_id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "source": {
+                                "type": "string",
+                                "enum": [
+                                  "web",
+                                  "mobile",
+                                  "server"
+                                ]
+                              },
+                              "occurred_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                "description": "ISO 8601, UTC.",
+                                "example": "2026-10-20T12:00:00.000Z"
+                              },
+                              "user_id": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "device_id": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "purchase"
+                                ]
+                              },
+                              "payload": {
+                                "type": "object",
+                                "properties": {
+                                  "order_id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 128
+                                  },
+                                  "channel": {
+                                    "type": "string",
+                                    "enum": [
+                                      "app",
+                                      "phone",
+                                      "admin"
+                                    ]
+                                  },
+                                  "sum": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "exclusiveMinimum": true,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "items": {
+                                    "minItems": 1,
+                                    "maxItems": 100,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 128
+                                        },
+                                        "unit_price": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "exclusiveMinimum": true,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "quantity": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "exclusiveMinimum": true,
+                                          "maximum": 100000
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "unit_price",
+                                        "quantity"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "order_id",
+                                  "channel",
+                                  "sum",
+                                  "items"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "event_id",
+                              "source",
+                              "occurred_at",
+                              "user_id",
+                              "device_id",
+                              "type",
+                              "payload"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "event_id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "source": {
+                                "type": "string",
+                                "enum": [
+                                  "web",
+                                  "mobile",
+                                  "server"
+                                ]
+                              },
+                              "occurred_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                "description": "ISO 8601, UTC.",
+                                "example": "2026-10-20T12:00:00.000Z"
+                              },
+                              "user_id": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "device_id": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "error"
+                                ]
+                              },
+                              "payload": {
+                                "type": "object",
+                                "properties": {
+                                  "operation": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
+                                  },
+                                  "code": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
+                                  },
+                                  "page_id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 128
+                                  }
+                                },
+                                "required": [
+                                  "operation",
+                                  "code"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "event_id",
+                              "source",
+                              "occurred_at",
+                              "user_id",
+                              "device_id",
+                              "type",
+                              "payload"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "description": "Newest first by `occurred_at`, at most `limit` items."
+                    },
+                    "nextCursor": {
+                      "nullable": true,
+                      "description": "Opaque. Pass as `cursor` to get the next page; `null` when there are no more events.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query is invalid. `message` lists each problem as \"field: reason\"."
+          }
+        },
+        "summary": "List events",
+        "tags": [
+          "Events"
+        ]
+      },
+      "post": {
+        "description": "Idempotent by `event_id`: the first event wins, a repeat is not stored again. `device_id` is required for `web` and `mobile` events. `purchase` is accepted from `server` only. Unknown keys are rejected.",
+        "operationId": "EventsController_recordEvent",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "event_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "description": "Generated by the client once per event; reused in every retry.",
+                        "example": "0b6f6f0e-5a52-4c5e-9f3a-2f1f7f6a8d11"
+                      },
+                      "source": {
+                        "type": "string",
+                        "enum": [
+                          "web",
+                          "mobile",
+                          "server"
+                        ]
+                      },
+                      "occurred_at": {
+                        "type": "integer",
+                        "minimum": 1000000000000,
+                        "maximum": 9007199254740991,
+                        "description": "Unix time in milliseconds. Rejected if too far ahead of the server clock or too old (limits are configurable).",
+                        "example": 1760961600000
+                      },
+                      "user_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "device_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "page_view"
+                        ]
+                      },
+                      "payload": {
+                        "type": "object",
+                        "properties": {
+                          "page_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          },
+                          "entity_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          },
+                          "referrer": {
+                            "type": "string",
+                            "maxLength": 2048
+                          },
+                          "utm_source": {
+                            "type": "string",
+                            "maxLength": 128
+                          },
+                          "utm_medium": {
+                            "type": "string",
+                            "maxLength": 128
+                          },
+                          "utm_campaign": {
+                            "type": "string",
+                            "maxLength": 128
+                          }
+                        },
+                        "required": [
+                          "page_id"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "event_id",
+                      "source",
+                      "occurred_at",
+                      "type",
+                      "payload"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "event_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "description": "Generated by the client once per event; reused in every retry.",
+                        "example": "0b6f6f0e-5a52-4c5e-9f3a-2f1f7f6a8d11"
+                      },
+                      "source": {
+                        "type": "string",
+                        "enum": [
+                          "server"
+                        ]
+                      },
+                      "occurred_at": {
+                        "type": "integer",
+                        "minimum": 1000000000000,
+                        "maximum": 9007199254740991,
+                        "description": "Unix time in milliseconds. Rejected if too far ahead of the server clock or too old (limits are configurable).",
+                        "example": 1760961600000
+                      },
+                      "user_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "device_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "purchase"
+                        ]
+                      },
+                      "payload": {
+                        "type": "object",
+                        "properties": {
+                          "order_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          },
+                          "channel": {
+                            "type": "string",
+                            "enum": [
+                              "app",
+                              "phone",
+                              "admin"
+                            ]
+                          },
+                          "sum": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "exclusiveMinimum": true,
+                            "maximum": 9007199254740991
+                          },
+                          "items": {
+                            "minItems": 1,
+                            "maxItems": 100,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 128
+                                },
+                                "unit_price": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "exclusiveMinimum": true,
+                                  "maximum": 9007199254740991
+                                },
+                                "quantity": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "exclusiveMinimum": true,
+                                  "maximum": 100000
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "unit_price",
+                                "quantity"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "order_id",
+                          "channel",
+                          "sum",
+                          "items"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "event_id",
+                      "source",
+                      "occurred_at",
+                      "type",
+                      "payload"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "event_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "description": "Generated by the client once per event; reused in every retry.",
+                        "example": "0b6f6f0e-5a52-4c5e-9f3a-2f1f7f6a8d11"
+                      },
+                      "source": {
+                        "type": "string",
+                        "enum": [
+                          "web",
+                          "mobile",
+                          "server"
+                        ]
+                      },
+                      "occurred_at": {
+                        "type": "integer",
+                        "minimum": 1000000000000,
+                        "maximum": 9007199254740991,
+                        "description": "Unix time in milliseconds. Rejected if too far ahead of the server clock or too old (limits are configurable).",
+                        "example": 1760961600000
+                      },
+                      "user_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "device_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "error"
+                        ]
+                      },
+                      "payload": {
+                        "type": "object",
+                        "properties": {
+                          "operation": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "code": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "page_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          }
+                        },
+                        "required": [
+                          "operation",
+                          "code"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "event_id",
+                      "source",
+                      "occurred_at",
+                      "type",
+                      "payload"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "An event with this `event_id` already exists; nothing was stored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "created",
+                        "duplicate"
+                      ],
+                      "description": "`created` for a new event (201), `duplicate` when the `event_id` already exists (200).",
+                      "example": "created"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "The event was stored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "created",
+                        "duplicate"
+                      ],
+                      "description": "`created` for a new event (201), `duplicate` when the `event_id` already exists (200).",
+                      "example": "created"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The event is invalid. `message` lists each problem as \"field: reason\"; nothing was stored."
+          }
+        },
+        "summary": "Record an event",
+        "tags": [
+          "Events"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Live Pulse API",
+    "description": "Live Pulse is a real-time event dashboard API. It ingests events, serves stored events and aggregated metrics, and streams live updates to connected clients.",
+    "version": "0.0.1",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "schemas": {}
+  }
+}
