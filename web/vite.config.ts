@@ -5,6 +5,8 @@ import { defineConfig } from 'vitest/config';
 // In the browser call `/server/events`; Vite forwards it to `http://localhost:3000/events`.
 export default defineConfig({
   plugins: [react()],
+  // Resolves the `@/*` alias from tsconfig.app.json, for the dev server, build and Vitest.
+  resolve: { tsconfigPaths: true },
   server: {
     port: 5173,
     proxy: {
