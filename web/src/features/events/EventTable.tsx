@@ -31,9 +31,9 @@ const columns: Array<ColumnDef<typeof features, StoredEvent>> = [
 
 const DATA_FALLBACK: StoredEvent[] = [];
 
-export function EventsList() {
+export function EventTable() {
   const { isPending, error, data } = useQuery({
-    queryKey: ['eventsList'],
+    queryKey: ['eventTable'],
     queryFn: async () => {
       const response = await client.GET('/events');
       if (response.data) {
