@@ -131,6 +131,11 @@ body {
   }
   html {
     @apply font-sans;
+    color-scheme: light;
+  }
+  /* Native controls follow the theme. */
+  html.dark {
+    color-scheme: dark;
   }
   /* Tailwind v4 preflight resets buttons to cursor: default. */
   button:not(:disabled),

@@ -1,12 +1,6 @@
-import { format } from 'date-fns';
-import { CalendarIcon, XIcon } from 'lucide-react';
+import { XIcon } from 'lucide-react';
+import { DateTimeField } from '@/components/DateTimeField';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -19,49 +13,22 @@ import {
 export const EVENT_TYPES = ['page_view', 'purchase', 'error'] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
-export type EventFiltersValue = {
+export interface EventFiltersValue {
   types: EventType[];
   from?: Date;
   to?: Date;
-};
+}
 
-type EventFiltersProps = {
+interface EventFiltersProps {
   value: EventFiltersValue;
   onChange: (value: EventFiltersValue) => void;
-};
-
-type DateFieldProps = {
-  label: string;
-  value?: Date;
-  onChange: (date?: Date) => void;
-};
-
-function DateField({ label, value, onChange }: DateFieldProps) {
-  return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <Button
-            variant="outline"
-            className="w-44 justify-start font-normal"
-          />
-        }
-      >
-        <CalendarIcon data-icon="inline-start" />
-        {value ? format(value, 'yyyy-MM-dd') : label}
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0">
-        <Calendar mode="single" selected={value} onSelect={onChange} />
-      </PopoverContent>
-    </Popover>
-  );
 }
 
 export function EventFilters({ value, onChange }: EventFiltersProps) {
   const isEmpty = value.types.length === 0 && !value.from && !value.to;
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2">
+    <div className="mb-4 flex flex-wrap items-end gap-2">
       <Select
         multiple
         value={value.types}
@@ -82,16 +49,19 @@ export function EventFilters({ value, onChange }: EventFiltersProps) {
           </SelectGroup>
         </SelectContent>
       </Select>
-      <DateField
+      <DateTimeField
         label="From"
+        boundary="start"
         value={value.from}
         onChange={(from) => onChange({ ...value, from })}
       />
-      <DateField
+      <DateTimeField
         label="To"
+        boundary="end"
         value={value.to}
         onChange={(to) => onChange({ ...value, to })}
       />
+      <Button>Apply</Button>
       {!isEmpty && (
         <Button variant="ghost" onClick={() => onChange({ types: [] })}>
           <XIcon data-icon="inline-start" />
