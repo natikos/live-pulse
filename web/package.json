@@ -15,6 +15,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@tanstack/react-table": "^9.3.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
@@ -32,5 +33,11 @@
     "typescript": "~6.0.3",
     "vite": "^8.3.4",
     "vitest": "^5.0.5"
+  },
+  "intent": {
+    "skills": [
+      "@tanstack/react-table",
+      "@tanstack/table-core"
+    ]
   }
 }
