@@ -49,6 +49,35 @@ jobs:
           REDIS_URL: redis://localhost:6379
           KAFKA_BROKERS: localhost:9092
       - run: npm run build
+      # openapi.json is committed; fail when the API changed and it was not re-exported.
+      - run: npm run openapi:export
+        env:
+          DATABASE_URL: postgresql://livepulse:livepulse@localhost:5432/livepulse_test
+          REDIS_URL: redis://localhost:6379
+          KAFKA_BROKERS: localhost:9092
+      - run: git diff --exit-code -- openapi.json
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      # schema.d.ts is committed; fail when it is stale against server/openapi.json.
+      - run: npm run api:generate
+      - run: git diff --exit-code -- src/api/schema.d.ts
 
   scripts:
     runs-on: ubuntu-latest

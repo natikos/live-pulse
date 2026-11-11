@@ -3,6 +3,7 @@ import 'dotenv/config';
 export interface AppConfig {
   nodeEnv: string | undefined;
   port: number;
+  corsOrigins: string[];
   databaseUrl: string;
   redisUrl: string;
   kafkaBrokers: string[];
@@ -58,6 +59,11 @@ export function loadConfig(): AppConfig {
   return {
     nodeEnv: env.NODE_ENV,
     port: parsePort(env.PORT),
+    // Empty means CORS is off: only same-origin callers can read responses.
+    corsOrigins: (env.CORS_ORIGIN ?? '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter((origin) => origin.length > 0),
     databaseUrl: required('DATABASE_URL'),
     redisUrl: required('REDIS_URL'),
     kafkaBrokers: required('KAFKA_BROKERS')

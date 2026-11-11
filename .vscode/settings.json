@@ -1,0 +1,10 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/scripts/.venv/bin/python",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/scripts"
+  ],
+  "python.analysis.typeCheckingMode": "standard",
+  "files.associations": {
+    "*.css": "tailwindcss"
+  }
+}
