@@ -8,6 +8,7 @@ import {
 import type { StoredEvent } from './types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 const features = tableFeatures({});
 
@@ -26,6 +27,12 @@ const columns: Array<ColumnDef<typeof features, StoredEvent>> = [
   { accessorKey: 'device_id', header: 'Device ID', cell: nullableRender },
   { accessorKey: 'source', header: 'Source' },
 ];
+
+const COLUMN_WIDTHS: Record<string, string> = {
+  occurred_at: 'w-60',
+  type: 'w-32',
+  source: 'w-28',
+};
 
 const DATA_FALLBACK: StoredEvent[] = [];
 
@@ -78,14 +85,17 @@ export function EventTable({ events, isPending, error }: EventTableProps) {
 
   return (
     <div className="overflow-x-auto rounded-lg border">
-      <table className="w-full border-collapse text-left text-sm">
+      <table className="w-full table-fixed border-collapse text-left text-sm">
         <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
-                  className="px-4 py-3 font-medium whitespace-nowrap"
+                  className={cn(
+                    'px-4 py-3 font-medium whitespace-nowrap',
+                    COLUMN_WIDTHS[header.column.id],
+                  )}
                 >
                   {header.isPlaceholder ? null : (
                     <table.FlexRender header={header} />
@@ -101,7 +111,8 @@ export function EventTable({ events, isPending, error }: EventTableProps) {
               {row.getAllCells().map((cell) => (
                 <td
                   key={cell.id}
-                  className="px-4 whitespace-nowrap tabular-nums"
+                  className="truncate px-4 tabular-nums"
+                  title={String(cell.getValue() ?? '')}
                 >
                   <table.FlexRender cell={cell} />
                 </td>
