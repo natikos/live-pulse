@@ -6,8 +6,6 @@ import {
   type ColumnDefTemplate,
 } from '@tanstack/react-table';
 import type { StoredEvent } from './types';
-import { useQuery } from '@tanstack/react-query';
-import { client } from '@/api/client';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -31,22 +29,17 @@ const columns: Array<ColumnDef<typeof features, StoredEvent>> = [
 
 const DATA_FALLBACK: StoredEvent[] = [];
 
-export function EventTable() {
-  const { isPending, error, data } = useQuery({
-    queryKey: ['eventTable'],
-    queryFn: async () => {
-      const response = await client.GET('/events');
-      if (response.data) {
-        return response.data;
-      }
-      throw response.error;
-    },
-  });
+interface EventTableProps {
+  events?: StoredEvent[];
+  isPending: boolean;
+  error: Error | null;
+}
 
+export function EventTable({ events, isPending, error }: EventTableProps) {
   const table = useTable({
     features,
     columns,
-    data: data?.items ?? DATA_FALLBACK,
+    data: events ?? DATA_FALLBACK,
   });
 
   if (isPending) {
@@ -72,7 +65,7 @@ export function EventTable() {
     );
   }
 
-  if (data.items.length === 0) {
+  if (!events || events.length === 0) {
     return (
       <Alert>
         <AlertTitle>No events found</AlertTitle>

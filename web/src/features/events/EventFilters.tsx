@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { XIcon } from 'lucide-react';
 import { DateTimeField } from '@/components/DateTimeField';
 import { Button } from '@/components/ui/button';
@@ -20,11 +21,13 @@ export interface EventFiltersValue {
 }
 
 interface EventFiltersProps {
-  value: EventFiltersValue;
-  onChange: (value: EventFiltersValue) => void;
+  onApply: (value: EventFiltersValue) => void;
 }
 
-export function EventFilters({ value, onChange }: EventFiltersProps) {
+const EMPTY_FILTERS: EventFiltersValue = { types: [] };
+
+export function EventFilters({ onApply }: EventFiltersProps) {
+  const [value, onChange] = useState<EventFiltersValue>(EMPTY_FILTERS);
   const isEmpty = value.types.length === 0 && !value.from && !value.to;
 
   return (
@@ -61,9 +64,15 @@ export function EventFilters({ value, onChange }: EventFiltersProps) {
         value={value.to}
         onChange={(to) => onChange({ ...value, to })}
       />
-      <Button>Apply</Button>
+      <Button onClick={() => onApply(value)}>Apply</Button>
       {!isEmpty && (
-        <Button variant="ghost" onClick={() => onChange({ types: [] })}>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            onChange(EMPTY_FILTERS);
+            onApply(EMPTY_FILTERS);
+          }}
+        >
           <XIcon data-icon="inline-start" />
           Clear
         </Button>
