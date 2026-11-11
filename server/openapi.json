@@ -114,7 +114,14 @@
             }
           },
           "400": {
-            "description": "The query is invalid. `message` lists each problem as \"field: reason\"."
+            "description": "The query is invalid. `message` lists each problem as \"field: reason\".",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
           }
         },
         "summary": "List events",
@@ -464,7 +471,14 @@
             }
           },
           "400": {
-            "description": "The event is invalid. `message` lists each problem as \"field: reason\"; nothing was stored."
+            "description": "The event is invalid. `message` lists each problem as \"field: reason\"; nothing was stored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
           }
         },
         "summary": "Record an event",
@@ -758,6 +772,39 @@
             "additionalProperties": false
           }
         ]
+      },
+      "BadRequestError": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "enum": [
+              400
+            ]
+          },
+          "error": {
+            "type": "string",
+            "enum": [
+              "Bad Request"
+            ]
+          },
+          "message": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Each problem as \"field: reason\".",
+            "example": [
+              "limit: Too big: expected number to be <=100"
+            ]
+          }
+        },
+        "required": [
+          "statusCode",
+          "error",
+          "message"
+        ],
+        "additionalProperties": false
       }
     }
   }

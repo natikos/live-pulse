@@ -27,6 +27,7 @@ import {
   ListEventsResponseDto,
   listEventsResponseSchema,
 } from './dto/list-events.dto.js';
+import { badRequestResponseSchema } from '../common/api-error.dto.js';
 
 @Controller('events')
 export class EventsController {
@@ -49,6 +50,7 @@ export class EventsController {
   @ApiBadRequestResponse({
     description:
       'The query is invalid. `message` lists each problem as "field: reason".',
+    standardSchema: badRequestResponseSchema,
   })
   async listEvents(
     @Query({ schema: listEventsQuerySchema }) query: ListEventsQueryDto,
@@ -76,6 +78,7 @@ export class EventsController {
   @ApiBadRequestResponse({
     description:
       'The event is invalid. `message` lists each problem as "field: reason"; nothing was stored.',
+    standardSchema: badRequestResponseSchema,
   })
   async recordEvent(
     @Body({ schema: recordEventSchema }) body: RecordEventDto,
