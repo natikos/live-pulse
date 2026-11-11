@@ -27,9 +27,9 @@ export function useEventList(filters: EventFiltersValue) {
 
       return data;
     },
-    getNextPageParam: (data) => data?.nextCursor ?? undefined,
+    getNextPageParam: ({ nextCursor }) => nextCursor,
     select: ({ pages }) => ({
-      events: pages.flatMap((data) => data?.items ?? []),
+      events: pages.flatMap(({ items }) => items),
     }),
   });
 }
