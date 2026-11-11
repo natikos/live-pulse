@@ -6,6 +6,7 @@ import {
   type ColumnDefTemplate,
 } from '@tanstack/react-table';
 import type { StoredEvent } from './types';
+import { useVirtualRows } from './useVirtualRows';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -36,17 +37,33 @@ const COLUMN_WIDTHS: Record<string, string> = {
 
 const DATA_FALLBACK: StoredEvent[] = [];
 
+// px; must equal the row's `h-11` (Tailwind: 11 × 4px).
+const ROW_HEIGHT = 44;
+
 interface EventTableProps {
   events?: StoredEvent[];
   isPending: boolean;
   error: Error | null;
+  onEndReached?: () => void;
 }
 
-export function EventTable({ events, isPending, error }: EventTableProps) {
+export function EventTable({
+  events,
+  isPending,
+  error,
+  onEndReached,
+}: EventTableProps) {
   const table = useTable({
     features,
     columns,
     data: events ?? DATA_FALLBACK,
+  });
+
+  const rows = table.getRowModel().rows;
+  const { scrollRef, virtualRows, padding } = useVirtualRows({
+    count: rows.length,
+    rowHeight: ROW_HEIGHT,
+    onEndReached,
   });
 
   if (isPending) {
@@ -59,7 +76,7 @@ export function EventTable({ events, isPending, error }: EventTableProps) {
     );
   }
 
-  if (error) {
+  if (error && !events) {
     return (
       <Alert variant="destructive">
         <AlertTitle>Could not load events</AlertTitle>
@@ -84,9 +101,9 @@ export function EventTable({ events, isPending, error }: EventTableProps) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border">
+    <div ref={scrollRef} className="h-[70vh] overflow-auto rounded-lg border">
       <table className="w-full table-fixed border-collapse text-left text-sm">
-        <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+        <thead className="sticky top-0 z-10 bg-muted text-xs uppercase tracking-wide text-muted-foreground">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
@@ -105,20 +122,33 @@ export function EventTable({ events, isPending, error }: EventTableProps) {
             </tr>
           ))}
         </thead>
-        <tbody className="divide-y">
-          {table.getRowModel().rows.map((row) => (
-            <tr key={row.id} className="h-11 hover:bg-muted/50">
-              {row.getAllCells().map((cell) => (
-                <td
-                  key={cell.id}
-                  className="truncate px-4 tabular-nums"
-                  title={String(cell.getValue() ?? '')}
-                >
-                  <table.FlexRender cell={cell} />
-                </td>
-              ))}
+        <tbody>
+          {padding.top > 0 && (
+            <tr aria-hidden>
+              <td colSpan={columns.length} style={{ height: padding.top }} />
             </tr>
-          ))}
+          )}
+          {virtualRows.map((virtualRow) => {
+            const row = rows[virtualRow.index];
+            return (
+              <tr key={row.id} className="h-11 border-b hover:bg-muted/50">
+                {row.getAllCells().map((cell) => (
+                  <td
+                    key={cell.id}
+                    className="truncate px-4 tabular-nums"
+                    title={String(cell.getValue() ?? '')}
+                  >
+                    <table.FlexRender cell={cell} />
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+          {padding.bottom > 0 && (
+            <tr aria-hidden>
+              <td colSpan={columns.length} style={{ height: padding.bottom }} />
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
