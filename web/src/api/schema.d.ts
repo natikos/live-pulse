@@ -118,6 +118,19 @@ export interface components {
                 page_id?: string;
             };
         };
+        BadRequestError: {
+            /** @enum {number} */
+            statusCode: 400;
+            /** @enum {string} */
+            error: "Bad Request";
+            /**
+             * @description Each problem as "field: reason".
+             * @example [
+             *       "limit: Too big: expected number to be <=100"
+             *     ]
+             */
+            message: string[];
+        };
     };
     responses: never;
     parameters: never;
@@ -180,7 +193,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["BadRequestError"];
+                };
             };
         };
     };
@@ -312,7 +327,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["BadRequestError"];
+                };
             };
         };
     };
