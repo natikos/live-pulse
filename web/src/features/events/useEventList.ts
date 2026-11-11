@@ -8,11 +8,15 @@ export function useEventList(filters: EventFiltersValue) {
     queryKey: ['eventList', filters],
     initialPageParam: undefined as string | undefined,
     retry: shouldRetry,
+    // A refetch reloads every loaded page and shifts rows under the reader;
+    // the list changes only on an explicit refresh.
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     queryFn: async ({ pageParam }) => {
       const { error, data, response } = await client.GET('/events', {
         params: {
           query: {
-            limit: 10,
+            limit: 100,
             type: filters.types.length > 0 ? filters.types : undefined,
             startDate: filters.from?.getTime(),
             endDate: filters.to?.getTime(),
