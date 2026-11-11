@@ -106,3 +106,29 @@ Plain: `python -m venv .venv && source .venv/bin/activate`.
 
 ---
 <!-- New entries from scripts and reviews go below, with the date and where they appeared. -->
+
+### 2026-11-11: bulk load with `COPY`, a seeded generator (`scripts/seed_events.py`, #4)
+```python
+import psycopg, random, uuid
+from typing import Annotated
+import typer
+
+with psycopg.connect(database_url) as conn:           # one transaction: commit on exit, rollback on error
+    with (
+        conn.cursor() as cur,
+        cur.copy("COPY events (event_id, type) FROM STDIN") as copy,   # several managers in one `with`
+    ):
+        for row in rows:
+            copy.write_row(row)                        # fastest way to load many rows
+    conn.execute("ANALYZE events")                     # refresh planner statistics after a big load
+
+rng = random.Random(42)                                # own generator: the same seed gives the same rows
+rng.choices(["a", "b"], weights=[90, 10], k=5)         # weighted sampling with replacement
+uuid.UUID(int=rng.getrandbits(128), version=4)         # reproducible UUID; uuid4() reads OS entropy
+
+def main(rows: Annotated[int, typer.Option(min=1, envvar="ROWS", help="...")] = 10) -> None: ...
+```
+- A single `random.Random(seed)` instance keeps results reproducible; the **order of calls** is part of what a seed reproduces.
+- `(end - start) // timedelta(milliseconds=1)` gives whole milliseconds as an `int`.
+- `row = cur.execute(...).fetchone(); assert row is not None` narrows the type for the checker.
+- `enumerate(zip(a, b), start=1)` for a 1-based counter over two lists.

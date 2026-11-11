@@ -86,6 +86,7 @@ Status: `[ ]` not done, `[x]` done. Language: **[P]** Python script, **[N]** Nes
 - **Reproduce:** render 100k rows naively, then with TanStack Virtual. Record in React Profiler and the Chrome Performance tab.
 - **Observe:** commit time, DOM node count, scroll FPS, memory.
 - **I should explain:** why DOM size is the cost, how windowing works, what virtualization breaks (find-in-page, variable heights).
+- **Result (partial, 2026-11-11, issue #4):** measured with Firefox heap snapshots, at 10k and 50k rows (not 100k, and no React Profiler or FPS yet). 10k: about 392 MB -> about 13.5 MB; 50k: about 1.93 GB -> about 47 MB; `TR` / `TD` 50,001 / 250,000 -> 31 / 146. Cost per loaded row about 39 KB -> about 0.8 KB. Still to do for the full experiment: commit time and scroll FPS in the Profiler / Performance tab, and 100k. See [STUDY_NOTES.md](STUDY_NOTES.md).
 
 ## Scaling
 
