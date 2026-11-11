@@ -12,21 +12,36 @@ export function EventsPage() {
     error,
     hasNextPage,
     isFetchingNextPage,
+    isFetchNextPageError,
     fetchNextPage,
   } = useEventList(applied);
+
+  // After a failed page the user retries by hand; retrying here would loop.
+  const canLoadMore =
+    hasNextPage && !isFetchingNextPage && !isFetchNextPageError;
 
   return (
     <>
       <EventFilters onApply={setApplied} />
-      <EventTable events={data?.events} isPending={isPending} error={error} />
+      <EventTable
+        events={data?.events}
+        isPending={isPending}
+        error={error}
+        onEndReached={canLoadMore ? () => void fetchNextPage() : undefined}
+      />
       {hasNextPage && (
         <Button
           variant="outline"
           className="mt-4"
-          disabled={isFetchingNextPage}
-          onClick={() => fetchNextPage()}
+          onClick={() => {
+            if (!isFetchingNextPage) {
+              void fetchNextPage();
+            }
+          }}
         >
-          {isFetchingNextPage ? 'Loading…' : 'Load more'}
+          {isFetchNextPageError
+            ? 'Could not load more events. Retry'
+            : 'Load more'}
         </Button>
       )}
     </>
