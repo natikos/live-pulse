@@ -159,14 +159,70 @@ Written by Claude after reviews and accepted tickets. See [HANDBOOK_GUIDE.md](HA
 - **Related chapter:** [api-styles.md](topics/api-styles.md)
 
 ### 2026-10-22: `GET /events` returns an explicit public shape, not the table row
-- **Issue / PR:** #4 / branch `feat/event-list-4` (PR not opened yet)
+- **Issue / PR:** #4 / PR #9
 - **Decision:** the repository selects named columns (no internal `id`, no `created_at`); the response schema reuses the `POST` payload schemas (exported from `record-event.dto.ts`) and describes `occurred_at` as an ISO string and `user_id` / `device_id` as nullable. Order is `occurred_at desc, id desc`.
 - **Alternatives considered:** `selectAll()` plus a schema that only documents the public fields (Swagger would lie, and clients could depend on `id`); a second copy of the payload schemas for the response (two places to change per new field).
 - **Reasoning:** whatever a response returns becomes a contract. A field that leaks once is a breaking change to remove. One e2e test asserts the exact key set, because nothing else catches a return to `selectAll()`.
 - **Reviewer feedback:**
   - BLOCKER (found while wiring): `limit` passed validation but the repository still had `.limit(10)`, so `?limit=100` returned 10 rows with no error. Typecheck and the old e2e test could not see it.
   - SHOULD-FIX (accepted): the e2e test expected `created_at` order while the code sorted by `occurred_at`; the owner decided on `occurred_at` and the test was rewritten.
-  - SHOULD-FIX (open): no paging beyond the newest `limit` rows, no index for the sort and filters, no e2e test for the `type` and date filters. See the review of #4.
+  - SHOULD-FIX (resolved in PR #9): no paging beyond the newest `limit` rows (keyset cursor, 2026-11-03), no index for the sort and filters (index on `(occurred_at, id, type)`, 2026-10-27), no e2e test for the `type` and date filters (keyset paging and filters e2e).
 - **What changed:** `limit` carried from query to SQL; explicit `select`; response schema in `list-events.response.dto.ts`; Swagger documents the response.
 - **Lesson:** a value that is validated but never used fails silently. Follow one parameter from the query string to the SQL before calling it done, and pin the response shape with a test.
 - **Related chapter:** [api-styles.md](topics/api-styles.md), [databases.md](topics/databases.md)
+
+### 2026-10-27: Index `(occurred_at, id, type)` for the event list, built without blocking writes
+- **Issue / PR:** #4 / PR #9
+- **Decision:** one B-tree index matching the list order (`occurred_at DESC, id DESC`) with `type` as the last column, created with `CREATE INDEX CONCURRENTLY`. The migrate script lets a migration opt out of its transaction and takes a session-level advisory lock; a second concurrent run fails at once.
+- **Alternatives considered:** `type` first (then the unfiltered first page cannot use the index); a partial index per type (several indexes for one query shape); a plain `CREATE INDEX` (blocks writes while it builds); waiting on the advisory lock (would deadlock with `CONCURRENTLY`, which waits for every older transaction).
+- **Reasoning:** without it the unfiltered first page on 1M rows was a parallel sequential scan plus a sort, 158 ms; with it an index scan, 0.3 ms (figures from the commit message). `type` is last so the unfiltered query and `IN (...)` lists can still use the index.
+- **Reviewer feedback:** the earlier review of #4 flagged the missing index as SHOULD-FIX.
+- **What changed:** migration for the index, migrate script with per-migration transaction mode.
+- **Lesson:** an `ORDER BY ... LIMIT` is cheap only if an index matches the order, and the column order of the index decides which queries can use it.
+- **Related chapter:** [databases.md](topics/databases.md)
+
+### 2026-11-03: Cursor from `(occurred_at, id)`, one extra row to know if a page follows
+- **Issue / PR:** #4 / PR #9
+- **Decision:** the repository filters by `(occurred_at, id)` below the cursor; the service reads one row past the page to learn whether another page exists and builds `nextCursor` from the last returned row.
+- **Alternatives considered:** `OFFSET` (cost grows with depth, rows shift while new events arrive); a separate `count(*)` to detect the last page (a second query that is slow on 1M rows).
+- **Reasoning:** keyset cost does not depend on depth, and a new event does not skip or repeat a row for a reader who is paging. Ties in `occurred_at` are broken by `id`; the seeding script deliberately repeats the previous timestamp for 5% of rows to exercise that.
+- **Reviewer feedback:** none recorded beyond the review of #4 above.
+- **What changed:** cursor codec, paginated response (`items`, `nextCursor`), repository and service.
+- **Lesson:** keyset paging needs a total order; the tie-breaker is part of the cursor, not a detail.
+- **Related chapter:** [databases.md](topics/databases.md), [api-styles.md](topics/api-styles.md)
+
+### 2026-11-11: A 400 response has a described body; the client carries the HTTP status in its own error
+- **Issue / PR:** #4 / PR #9
+- **Decision:** `GET` and `POST /events` declare `BadRequestError` (`statusCode`, `error`, `message[]`) in the OpenAPI document; the client throws an `ApiError(status, body)` and decides retries from the status: no retry for 4xx except 408 and 429, retry 5xx and network failures up to 3 times.
+- **Alternatives considered:** casting the thrown body to a type with `statusCode` in the client (the type is a claim, not a check; a network `TypeError` has no such field); a global `Register` type for all query errors (one type for every query); retrying everything (a bad request fails the same way each time).
+- **Reasoning:** the client types are generated from the schema, so the schema has to tell the truth. The status taken from `response.status` exists for every outcome that has a response, whatever the body is.
+- **Reviewer feedback:**
+  - BLOCKER (found while wiring): `limit: 50000` in the web query; the server allows 1-100 and answered 400 to every request. The `retry` callback also returned the error object (always truthy), which means retry forever.
+  - Tech lead's own error (admitted): "a 400 has no body", read from the schema; the server did send one. The schema had drifted from the behaviour.
+  - SHOULD-FIX (accepted): `if (error)` treats a falsy empty body as success; the check is `error !== undefined`.
+- **What changed:** `common/api-error.dto.ts`, regenerated `openapi.json` and `schema.d.ts`, `web/src/api/errors.ts` with tests.
+- **Lesson:** when a type does not exist, find out why before adding it by hand; here the missing type was a sign that the contract was wrong. Verify what the reviewer claims from a schema against a real response.
+- **Related chapter:** [api-styles.md](topics/api-styles.md), [typescript-react-patterns.md](topics/typescript-react-patterns.md)
+
+### 2026-11-11: The event list never refetches by itself
+- **Issue / PR:** #4 / PR #9 (groundwork for the change request #5)
+- **Decision:** `refetchOnWindowFocus: false` and `refetchOnReconnect: false` on the list query only; the list changes when the reader asks.
+- **Alternatives considered:** the same two options on the global `QueryClient` (right only if the whole app follows this rule, and later screens such as dashboards will want fresh data on return); leaving the default.
+- **Reasoning:** with the default, returning to the tab reloads every loaded page and swaps them, so rows can shift under someone who is reading. #5 asks for exactly the opposite: a notice, and the reader chooses when to refresh.
+- **Reviewer feedback:** SHOULD-FIX (accepted): the developer had decided "no automatic refetch", but nothing in the code said so; it was found when returning to a measurement tab triggered thousands of requests.
+- **What changed:** two options and a comment in `useEventList`.
+- **Lesson:** a decision that is only in the head is not implemented. Promote the option to a global default when a second query needs it.
+- **Related chapter:** [typescript-react-patterns.md](topics/typescript-react-patterns.md)
+
+### 2026-11-11: Row virtualization with TanStack Virtual, fixed columns, load-ahead of 40 rows
+- **Issue / PR:** #4 / PR #9
+- **Decision:** infinite scroll over a virtualized `<table>`: fixed row height 44 px, `overscan` 15, columns with fixed widths and truncation, the next page requested when the last visible row is within 40 of the end (pages of 100), at most one request at a time, a failed page stops the automatic loading and the button becomes a retry. The window logic lives in `useVirtualRows`, the component only draws.
+- **Alternatives considered:** keep "Load more" without virtualization (cheapest, memory grows with every page); Prev / Next pages (bounded DOM, but the reader loses the place); `react-virtuoso` (less code, but it owns the markup and the scroll container, which makes the stable list needed by #5 harder); `react-window` (fixed-size lists, awkward with a `<table>`); `maxPages` (needs paging in both directions, and the cache turned out to be small).
+- **Reasoning:** the owner put UX above implementation effort. Measured, one loaded row cost about 39 KB before and about 0.8 KB after (50k rows: about 1.93 GB to about 47 MB). `overscan` is one screen because that is how far a quick flick of the wheel goes; the prefetch distance sits between "visible plus overscan" (30) and one page (100), and 40 gives about three screens of margin at 44 px.
+- **Reviewer feedback:**
+  - SHOULD-FIX (accepted): `overscan` first tied to the page size; they are different numbers (rendering smoothness vs network prefetch).
+  - BLOCKER (found while writing the trigger, not yet reproduced against a stopped server): a failed next-page fetch would make the screen replace the table with a full error and erase the list, and auto-loading would loop on a broken server. Both are handled in the code.
+  - NIT (open): the row height exists twice (`ROW_HEIGHT` and the `h-11` class).
+- **What changed:** `useVirtualRows.ts`, `EventTable.tsx`, `EventsPage.tsx`, `vite.config.ts` (a `VITE_API_BASE_URL` for tests, because CI has no `.env`).
+- **Lesson:** measure before deciding what to optimize: the data in the cache (the part a cache window would cap) was about 2% of the per-row cost before virtualization; the DOM and components were the rest.
+- **Related chapter:** [typescript-react-patterns.md](topics/typescript-react-patterns.md)

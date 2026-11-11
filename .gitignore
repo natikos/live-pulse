@@ -16,6 +16,7 @@ scripts/out/
 
 # Profiling artifacts
 *.heapsnapshot
+*.fxsnapshot
 *.cpuprofile
 *.clinic
 

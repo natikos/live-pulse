@@ -118,7 +118,11 @@ Tx B:      read counter=5 -- write 6 -- commit      => final 6, should be 7  (lo
 - `events` table (migration `0001`): append-only, `event_id` has a unique constraint. `POST /events` runs `INSERT ... ON CONFLICT (event_id) DO NOTHING`; the number of inserted rows decides `201` (new) or `200` (duplicate). Issue #1, PR #3; the decisions are in [DECISIONS.md](../DECISIONS.md).
 - The e2e tests run on a throwaway Postgres (own container, tmpfs, own port), so `TRUNCATE` never touches the dev database.
 - Experiments: E1 (lost update), E2 (isolation + deadlock), E3 (EXPLAIN, B-tree vs BRIN) in [EXPERIMENTS.md](../EXPERIMENTS.md).
-- Issues / PRs: #1 / PR #3
+- **`GET /events` (#4 / PR #9):** keyset cursor over `(occurred_at, id)` (the service reads one extra row to know whether another page follows), filters by `type` and time range, index `(occurred_at, id, type)`. The unfiltered first page on 1M rows went from a parallel sequential scan plus sort at 158 ms to an index scan at 0.3 ms (figures from the commit message). The 1M-row p95 and the deep-page numbers for the demo are not recorded here yet.
+- **Precision change without downtime (expand / migrate / contract):** add a nullable `occurred_at_ms` (metadata-only), dual-write, backfill in throttled keyset batches (per-batch transactions, lock and statement timeouts, a pause while dead tuples exceed the autovacuum threshold; idempotent, safe to interrupt), then drop the old column and make the new one `NOT NULL`. The `down()` cannot bring microseconds back.
+- **Migrations that cannot run in a transaction** (`CREATE INDEX CONCURRENTLY`) opt out per migration; a run holds a session-level advisory lock and a concurrent second run fails at once, because waiting would deadlock with `CONCURRENTLY`, which waits for every older transaction.
+- **Seeding 1M rows** with `COPY` in one transaction: deterministic by seed, a type mix of 90 / 8 / 2 percent, 5% of rows repeating the previous millisecond so the tie-breaker is exercised, `ANALYZE` after the load.
+- Issues / PRs: #1 / PR #3; #4 / PR #9
 
 ## Lessons from building it
 - **Idempotency needs a key the client controls plus a constraint the database enforces.** A check in application code races: under READ COMMITTED both of two simultaneous requests see "not found". (#1, quiz.)
