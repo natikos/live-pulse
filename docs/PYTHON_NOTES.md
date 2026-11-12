@@ -132,3 +132,29 @@ def main(rows: Annotated[int, typer.Option(min=1, envvar="ROWS", help="...")] = 
 - `(end - start) // timedelta(milliseconds=1)` gives whole milliseconds as an `int`.
 - `row = cur.execute(...).fetchone(); assert row is not None` narrows the type for the checker.
 - `enumerate(zip(a, b), start=1)` for a 1-based counter over two lists.
+
+### 2026-11-12: a seeded mixture generator with pytest (`scripts/seed_events_prod.py`)
+```python
+@dataclass(frozen=True)                                # immutable result object, no boilerplate
+class Shares:
+    spike: float
+
+rng.uniform(a, b); rng.gauss(mu, sigma); rng.triangular(low, high, mode)   # samples, from one seeded rng
+NormalDist().cdf(x)                                    # share of a normal distribution below x: an exact number, not a sample
+(end - start) / timedelta(hours=1)                     # timedelta / timedelta is a float; -timedelta works too
+zip(a, b, strict=True)                                 # raises if the lengths differ
+sorted(zip(created_at, occurred_at))                   # tuples sort by the first item, then the second
+def draw_within_window(draw: Callable[[], float], ...) # a function with no arguments passed as a value (collections.abc)
+draw_within_window(lambda: rng.uniform(0, n), ...)
+```
+- Redraw until a value fits instead of clamping it: clamping piles equal values on the edge.
+- `if x < 0: raise ValueError(...)` right where a derived number is computed beats a silent wrong distribution later.
+
+```python
+@pytest.fixture(scope="module")                        # built once per test file
+@pytest.mark.parametrize("room", [a, b, c])            # one test body, several inputs
+monkeypatch.setattr(module, "NAME", 0.01)              # change a module constant for one test only
+pytest.approx(0.35, abs=0.01)                          # compare floats with a tolerance
+with pytest.raises(ValueError): ...
+```
+- `[tool.pytest.ini_options] pythonpath = ["."]` in `pyproject.toml` lets tests import a script that sits next to them.

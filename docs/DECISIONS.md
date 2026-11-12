@@ -21,6 +21,20 @@ Written by Claude after reviews and accepted tickets. See [HANDBOOK_GUIDE.md](HA
 
 <!-- Entries go below, newest first. -->
 
+### 2026-11-12: Production-shaped seed data derived from the client's numbers (work in progress)
+- **Issue / PR:** none yet (branch `feat/seed-events-prod`, `scripts/seed_events_prod.py`).
+- **Decision:** `occurred_at` is a mixture of three groups over a fixed 5-day window ending at `--end`: an even **baseline**, a normal-shaped **spike** (3.5 h, ending 45 min before the end) and a **ramp** in the last hour. The group shares are not guessed; they come from two equations built from the client's targets (35% of events in the last day, 4.5% in the last hour). `created_at = occurred_at + lag`; a value that falls outside the window is **redrawn, not clamped**. `--days` was dropped because the shares only hold for 5 days.
+- **Alternatives considered:** one normal distribution over the window (no baseline, edges almost empty, the last hour is quiet); clamping to the window edge (a spike of equal timestamps on the boundary); dropping late events instead of redrawing the lag (truer lag distribution, but needs top-up batches to keep the row count); keeping `--days` (the shares silently stop matching the client's numbers for any other value).
+- **Reasoning:** the planner, BRIN and the cursor behave differently on data shaped like production, so the shape is a requirement, not a detail. Deriving the shares from the targets keeps the data tied to what the business looks at (last day, last hour), and the measured result confirms it: 35.0% / 4.51% / spike 15.6% / peak 11x the baseline hour on 200k rows.
+- **Reviewer feedback:**
+  - BLOCKER (found by measuring): the first client numbers could not all hold. A 1.5 h spike of 18.75% of events gave a peak of 21x the baseline hour (asked: 8-10x) and the last hour held 0.7% (asked: 4-5%). They went back to the client, who kept the spike share, lengthened the spike and asked for a ramp in the last hour.
+  - BLOCKER (fixed): with the wider spike, values landed after `end`; redrawing replaced a clamp.
+  - SHOULD-FIX (fixed): a negative derived share silently gave its rows to the other groups; `derive_shares` now raises `ValueError`. `MIN_LAG` duplicated a literal in the lag buckets.
+  - NIT (fixed): lag buckets as module constants, `BUCKETS` naming.
+- **What changed:** `derive_shares`, `draw_within_window`, `generate_distributed_occurred_at`, `generate_created_at`, 10 pytest tests, a `pytest` step in CI.
+- **Lesson:** when a requirement is a shape, turn it into numbers you can measure, and measure the generated data against them before building on top. Two of the client's numbers contradicted each other, and only the measurement showed it. Redrawing the lag near the end makes those lags a little shorter than real ones; that is a known, cheap-to-reverse simplification.
+- **Related chapter:** [databases.md](topics/databases.md)
+
 ### 2026-11-03: MongoDB enters as alert-service storage (Stage 5) and a side benchmark, not in the monolith
 - **Issue / PR:** none yet (planning discussion).
 - **Decision:** add MongoDB in two places: (A) alert-service owns a MongoDB database for alert rules after the Stage 5 extraction; (C) experiment E19 benchmarks the same event workload on Postgres and MongoDB. Postgres stays the only store for events.
