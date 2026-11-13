@@ -19,25 +19,106 @@ Requirements the data must meet, because each one changes a query plan or a test
       (35% of events in the last day, 4.5% in the last hour), see derive_shares.
     - occurred_at keeps millisecond precision with some equal values, so the tie-breaker of the
       (occurred_at, id) cursor is still exercised.
-    - Type mix close to production: ~90% page_view, ~8% purchase, ~2% error.
-    - Payloads valid for their type (server/src/events/dto/event-payloads.ts).
+    - Type mix per group, from the client: a normal day is ~94% page_view, ~5.5% purchase, ~0.5%
+      error; the spike is a sale under load, ~78.5% / 20% / 1.5%. The ramp uses the normal mix.
+      The overall mix is a result, not an input: ~91.6% / 7.8% / 0.66%.
+    - Payloads valid for their type (server/src/events/dto/event-payloads.ts) and shaped by the
+      group: the sale spike carries the utm campaign and goes through the app channel.
+    - Envelope fields follow EVENT_CONTRACT.md: purchases come from the server, clients always
+      have a device_id, a purchase always has a user_id. event_id is built from the seed.
     - Deterministic: the same --seed gives the same rows, so two runs can be compared.
     - ANALYZE after the load, otherwise the planner works with stale statistics.
     - Always empties the events table first (local use only, no flag, no prompt). Truncate and load
       are one transaction, so a failure leaves the table as it was.
 """
 
+import json
+import math
 import random
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from statistics import NormalDist
-from typing import Annotated, Literal, get_args
+from typing import Annotated, Any, Literal, get_args
 
 import typer
 
 Bucket = Literal["fast", "slow", "offline"]
+Group = Literal["baseline", "spike", "ramp"]
 BUCKETS = list(get_args(Bucket))
+
+EventType = Literal["page_view", "purchase", "error"]
+EVENT_TYPES = list(get_args(EventType))
+# Weights in percent, in the order of EVENT_TYPES.
+NORMAL_TYPE_WEIGHTS = [94, 5.5, 0.5]
+SPIKE_TYPE_WEIGHTS = [78.5, 20, 1.5]
+TYPE_WEIGHTS: dict[Group, list[float]] = {
+    "baseline": NORMAL_TYPE_WEIGHTS,
+    "spike": SPIKE_TYPE_WEIGHTS,
+    "ramp": NORMAL_TYPE_WEIGHTS,
+}
+
+# Page vocabulary of EVENT_CONTRACT.md; category and item pages always carry an entity_id.
+PAGES = ["home", "catalog", "category", "item", "cart", "checkout", "my-orders"]
+PAGE_WEIGHTS = [30, 20, 15, 20, 6, 4, 5]
+PAGES_NEED_ENTITY_ID = {"category", "item"}
+CATEGORY_COUNT = 200
+ITEM_COUNT = 5000
+# Share of page views that arrive with utm tags; the sale spike is mostly campaign traffic.
+UTM_SHARE: dict[Group, float] = {"baseline": 0.10, "spike": 0.45, "ramp": 0.10}
+SALE_CAMPAIGN = "autumn_sale"
+SALE_SHARE_OF_UTM_IN_SPIKE = 0.7
+UTM_SOURCES = [("google", "cpc"), ("facebook", "social"), ("newsletter", "email")]
+REFERRER_SHARE = 0.4
+
+CHANNELS = ["app", "phone", "admin"]
+# Weights in percent, in the order of CHANNELS. Outside the apps ~10-15% of orders; the sale goes
+# through the app.
+CHANNEL_WEIGHTS: dict[Group, list[float]] = {
+    "baseline": [87, 8, 5],
+    "spike": [95, 3, 2],
+    "ramp": [87, 8, 5],
+}
+ITEMS_PER_ORDER = [1, 2, 3, 4, 5]
+ITEMS_PER_ORDER_WEIGHTS = [55, 25, 10, 6, 4]
+QUANTITIES = [1, 2, 3]
+QUANTITY_WEIGHTS = [80, 15, 5]
+# Kopiyky; a log-normal with the median around 500 UAH and a floor of 1 UAH.
+PRICE_MEDIAN = 50_000
+PRICE_SIGMA = 0.8
+PRICE_MEDIAN_LOG = math.log(PRICE_MEDIAN)
+MIN_PRICE = 100
+DELIVERY_FEE = 8_000
+PROMO_DISCOUNT = 0.9
+# sum is what the customer paid: the items, plus delivery, or minus a promo (EVENT_CONTRACT.md).
+SUM_DELIVERY_SHARE = 0.2
+SUM_PROMO_SHARE = 0.1
+
+# (operation, code, weight)
+ERRORS = [
+    ("process_payment", "payment_declined", 25),
+    ("process_payment", "timeout", 10),
+    ("add_to_cart", "network", 15),
+    ("add_to_cart", "validation", 8),
+    ("apply_promo", "not_found", 8),
+    ("create_order", "conflict", 6),
+    ("create_order", "internal", 6),
+    ("send_order_confirmation", "timeout", 8),
+    ("remove_from_cart", "unknown", 4),
+]
+ERROR_PAGE_SHARE = 0.8
+
+CLIENT_SOURCES = ["web", "mobile"]
+CLIENT_SOURCE_WEIGHTS = [60, 40]
+# Errors also come from background work on the server.
+ERROR_SOURCES = ["web", "mobile", "server"]
+ERROR_SOURCE_WEIGHTS = [55, 35, 10]
+USER_COUNT = 100_000
+DEVICE_COUNT = 300_000
+LOGGED_IN_SHARE = 0.5
+# A purchase always has a buyer (a guest gets a record), but not always a device id.
+PURCHASE_DEVICE_SHARE = 0.75
 
 # Client's requirements for occurred_at; the shares and the spike geometry are derived from them.
 WINDOW_DAYS = 5
@@ -120,8 +201,9 @@ def draw_within_window(draw: Callable[[], float], count: int, latest: float) -> 
 
 def generate_distributed_occurred_at(
     end: datetime, rows: int, rng: random.Random
-) -> list[datetime]:
-    """Return `rows` occurred_at values in the window ending at `end`, in random order.
+) -> tuple[list[datetime], list[Group]]:
+    """Return `rows` occurred_at values in the window ending at `end`, in random order, and the
+    group each of them was drawn from (same index).
 
     Three groups: even baseline, a spike a few hours before the end, a ramp in the last hour.
     """
@@ -149,9 +231,13 @@ def generate_distributed_occurred_at(
         n_events_in_ramp,
         latest,
     )
-    offsets = baseline_offsets + spike_offsets + ramp_offsets
-    rng.shuffle(offsets)
-    return [start + timedelta(seconds=offset) for offset in offsets]
+    # Built piece by piece: `+` between list literals loses the declared Group type.
+    labelled: list[tuple[float, Group]] = [(offset, "baseline") for offset in baseline_offsets]
+    labelled.extend((offset, "spike") for offset in spike_offsets)
+    labelled.extend((offset, "ramp") for offset in ramp_offsets)
+    rng.shuffle(labelled)
+    occurred_at = [start + timedelta(seconds=offset) for offset, _ in labelled]
+    return occurred_at, [group for _, group in labelled]
 
 
 def generate_created_at(
@@ -171,6 +257,110 @@ def generate_created_at(
     return created_at
 
 
+def generate_event_types(rng: random.Random, groups: list[Group]) -> list[EventType]:
+    """Return one type per event; the mix depends on the group the event's occurred_at came from."""
+    return [rng.choices(EVENT_TYPES, TYPE_WEIGHTS[group])[0] for group in groups]
+
+
+def skewed_id(rng: random.Random, count: int) -> int:
+    """An id in 1..count with low ids more popular, like items in a shop."""
+    return int(count * rng.random() ** 3) + 1
+
+
+def page_view_payload(rng: random.Random, group: Group) -> dict[str, Any]:
+    page_id = rng.choices(PAGES, PAGE_WEIGHTS)[0]
+    payload: dict[str, Any] = {"page_id": page_id}
+    if page_id in PAGES_NEED_ENTITY_ID:
+        count = CATEGORY_COUNT if page_id == "category" else ITEM_COUNT
+        payload["entity_id"] = f"{page_id}_{skewed_id(rng, count)}"
+    if rng.random() < REFERRER_SHARE:
+        payload["referrer"] = f"https://example.com/r/{rng.randrange(1, 1000)}"
+    if rng.random() < UTM_SHARE[group]:
+        if group == "spike" and rng.random() < SALE_SHARE_OF_UTM_IN_SPIKE:
+            payload["utm_source"] = "newsletter"
+            payload["utm_medium"] = "email"
+            payload["utm_campaign"] = SALE_CAMPAIGN
+        else:
+            payload["utm_source"], payload["utm_medium"] = rng.choice(UTM_SOURCES)
+    return payload
+
+
+def purchase_payload(rng: random.Random, group: Group) -> dict[str, Any]:
+    count = rng.choices(ITEMS_PER_ORDER, ITEMS_PER_ORDER_WEIGHTS)[0]
+    items = [
+        {
+            "id": f"item_{skewed_id(rng, ITEM_COUNT)}",
+            "unit_price": max(MIN_PRICE, round(rng.lognormvariate(PRICE_MEDIAN_LOG, PRICE_SIGMA))),
+            "quantity": rng.choices(QUANTITIES, QUANTITY_WEIGHTS)[0],
+        }
+        for _ in range(count)
+    ]
+    total = sum(item["unit_price"] * item["quantity"] for item in items)
+    roll = rng.random()
+    if roll < SUM_DELIVERY_SHARE:
+        total += DELIVERY_FEE
+    elif roll < SUM_DELIVERY_SHARE + SUM_PROMO_SHARE:
+        total = max(1, round(total * PROMO_DISCOUNT))
+    return {
+        "order_id": f"ord_{rng.getrandbits(40)}",
+        "channel": rng.choices(CHANNELS, CHANNEL_WEIGHTS[group])[0],
+        "sum": total,
+        "items": items,
+    }
+
+
+def error_payload(rng: random.Random, has_page: bool) -> dict[str, Any]:
+    operation, code, _ = rng.choices(ERRORS, [weight for *_, weight in ERRORS])[0]
+    payload: dict[str, Any] = {"operation": operation, "code": code}
+    if has_page and rng.random() < ERROR_PAGE_SHARE:
+        payload["page_id"] = rng.choices(PAGES, PAGE_WEIGHTS)[0]
+    return payload
+
+
+def make_row(
+    rng: random.Random,
+    event_type: EventType,
+    group: Group,
+    occurred_at: datetime,
+    created_at: datetime,
+) -> tuple[Any, ...]:
+    """Build one row in COPY column order: everything the table needs except id."""
+    # uuid4() reads the OS entropy pool; building the UUID from rng keeps it reproducible.
+    event_id = uuid.UUID(int=rng.getrandbits(128), version=4)
+    # Only the backend sends purchases (EVENT_CONTRACT.md).
+    if event_type == "purchase":
+        source = "server"
+    elif event_type == "error":
+        source = rng.choices(ERROR_SOURCES, ERROR_SOURCE_WEIGHTS)[0]
+    else:
+        source = rng.choices(CLIENT_SOURCES, CLIENT_SOURCE_WEIGHTS)[0]
+
+    if event_type == "page_view":
+        payload = page_view_payload(rng, group)
+    elif event_type == "purchase":
+        payload = purchase_payload(rng, group)
+    else:
+        payload = error_payload(rng, has_page=source != "server")
+
+    user_id = None
+    if event_type == "purchase" or rng.random() < LOGGED_IN_SHARE:
+        user_id = f"user_{rng.randrange(1, USER_COUNT + 1)}"
+    has_device = source != "server" or (
+        event_type == "purchase" and rng.random() < PURCHASE_DEVICE_SHARE
+    )
+    device_id = f"dev_{rng.randrange(1, DEVICE_COUNT + 1)}" if has_device else None
+    return (
+        event_id,
+        event_type,
+        source,
+        user_id,
+        device_id,
+        json.dumps(payload),
+        occurred_at,
+        created_at,
+    )
+
+
 def main(
     rows: Annotated[int, typer.Option(min=1, help="How many events to insert")] = 10,
     seed: Annotated[
@@ -188,10 +378,17 @@ def main(
 ) -> None:
     rng = random.Random(seed)
     end = end.replace(tzinfo=UTC) if end.tzinfo is None else end
-    occurred_at = generate_distributed_occurred_at(end, rows, rng)
+    occurred_at, groups = generate_distributed_occurred_at(end, rows, rng)
     created_at = generate_created_at(occurred_at, end, rng)
-    events = sorted(zip(created_at, occurred_at, strict=True))
-    print(events[:3])
+    event_types = generate_event_types(rng, groups)
+    # Sorted by created_at, so id grows with it; the group travels along to shape the payload.
+    events = sorted(zip(created_at, occurred_at, event_types, groups, strict=True))
+    # Rows are built after sorting: every rng call below is part of what a seed reproduces.
+    table_rows = [
+        make_row(rng, event_type, group, happened, received)
+        for received, happened, event_type, group in events
+    ]
+    print(table_rows[:3])
 
 
 if __name__ == "__main__":
