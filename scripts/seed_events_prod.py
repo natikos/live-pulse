@@ -107,13 +107,13 @@ def format_lag(lag: timedelta) -> str:
     return f"{seconds * 1000:.0f} ms"
 
 
-def draw_within_window(draw: Callable[[], float], count: int, window_seconds: float) -> list[float]:
-    """Return `count` offsets in seconds from the window start, drawn with `draw`, all inside the window."""
+def draw_within_window(draw: Callable[[], float], count: int, latest: float) -> list[float]:
+    """Return `count` offsets in seconds from the window start, drawn with `draw`, in 0..`latest`."""
     # Redraw instead of clamping: clamping would pile up equal values on the window edge.
     offsets: list[float] = []
     while len(offsets) < count:
         offset = round(draw(), 3)
-        if 0 <= offset <= window_seconds:
+        if 0 <= offset <= latest:
             offsets.append(offset)
     return offsets
 
@@ -128,24 +128,26 @@ def generate_distributed_occurred_at(
     start = end - timedelta(days=WINDOW_DAYS)
     window_seconds = (end - start).total_seconds()
     last_hour_seconds = LAST_HOUR.total_seconds()
+    # Leave room for the smallest lag, so created_at never has to exceed `end`.
+    latest = window_seconds - MIN_LAG.total_seconds()
     spike_center_seconds = window_seconds - SPIKE_CENTER_BEFORE_END.total_seconds()
     shares = derive_shares()
     n_events_in_spike = round(rows * shares.spike)
     n_events_in_ramp = round(rows * shares.ramp)
     n_events_in_baseline = rows - n_events_in_spike - n_events_in_ramp
     baseline_offsets = draw_within_window(
-        lambda: rng.uniform(0, window_seconds), n_events_in_baseline, window_seconds
+        lambda: rng.uniform(0, window_seconds), n_events_in_baseline, latest
     )
     spike_offsets = draw_within_window(
         lambda: rng.gauss(spike_center_seconds, SPIKE_SIGMA.total_seconds()),
         n_events_in_spike,
-        window_seconds,
+        latest,
     )
     # The density grows towards the end of the window.
     ramp_offsets = draw_within_window(
         lambda: rng.triangular(window_seconds - last_hour_seconds, window_seconds, window_seconds),
         n_events_in_ramp,
-        window_seconds,
+        latest,
     )
     offsets = baseline_offsets + spike_offsets + ramp_offsets
     rng.shuffle(offsets)
@@ -163,9 +165,6 @@ def generate_created_at(
     created_at: list[datetime] = []
     for happened, lag in zip(occurred_at, lags, strict=True):
         room = end - happened
-        if room < MIN_LAG:
-            # Too close to the end for any regular lag; redrawing would never finish.
-            lag = room
         while lag > room:
             lag = generate_lags(rng, 1)[0]
         created_at.append(happened + lag)
