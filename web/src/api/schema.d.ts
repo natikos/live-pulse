@@ -44,6 +44,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/has-new": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check for events the reader has not seen
+         * @description Takes the same filters as the list plus the `snapshot` token the list returned. Answers whether matching events arrived since. It never returns the events themselves: the reader refreshes the list when ready.
+         */
+        get: operations["EventsController_hasNewEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -185,6 +205,11 @@ export interface operations {
                         items: components["schemas"]["StoredEvent"][];
                         /** @description Opaque. Pass as `cursor` to get the next page; `null` when there are no more events. */
                         nextCursor: string | null;
+                        /**
+                         * @description Only on the first page (no `cursor`), otherwise `null`. Keep the first one and send it to `GET /events/has-new` with the same filters.
+                         * @example 1705:1708:1706,1707
+                         */
+                        snapshot: string | null;
                     };
                 };
             };
@@ -323,6 +348,46 @@ export interface operations {
                 };
             };
             /** @description The event is invalid. `message` lists each problem as "field: reason"; nothing was stored. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestError"];
+                };
+            };
+        };
+    };
+    EventsController_hasNewEvents: {
+        parameters: {
+            query: {
+                type?: ("page_view" | "purchase" | "error")[];
+                /** @description Unix time in milliseconds, inclusive. */
+                startDate?: number;
+                /** @description Unix time in milliseconds, inclusive. */
+                endDate?: number;
+                /** @description Opaque token of the list the reader is looking at. Send it back unchanged. */
+                snapshot: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Whether there are unseen events. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description True when events matching the filters arrived after the list was loaded. */
+                        hasNew: boolean;
+                    };
+                };
+            };
+            /** @description The query is invalid. `message` lists each problem as "field: reason". */
             400: {
                 headers: {
                     [name: string]: unknown;

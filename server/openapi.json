@@ -102,11 +102,18 @@
                       "nullable": true,
                       "description": "Opaque. Pass as `cursor` to get the next page; `null` when there are no more events.",
                       "type": "string"
+                    },
+                    "snapshot": {
+                      "nullable": true,
+                      "description": "Only on the first page (no `cursor`), otherwise `null`. Keep the first one and send it to `GET /events/has-new` with the same filters.",
+                      "example": "1705:1708:1706,1707",
+                      "type": "string"
                     }
                   },
                   "required": [
                     "items",
-                    "nextCursor"
+                    "nextCursor",
+                    "snapshot"
                   ],
                   "additionalProperties": false
                 }
@@ -482,6 +489,102 @@
           }
         },
         "summary": "Record an event",
+        "tags": [
+          "Events"
+        ]
+      }
+    },
+    "/events/has-new": {
+      "get": {
+        "description": "Takes the same filters as the list plus the `snapshot` token the list returned. Answers whether matching events arrived since. It never returns the events themselves: the reader refreshes the list when ready.",
+        "operationId": "EventsController_hasNewEvents",
+        "parameters": [
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "page_view",
+                  "purchase",
+                  "error"
+                ]
+              }
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Unix time in milliseconds, inclusive.",
+            "schema": {
+              "description": "Unix time in milliseconds, inclusive.",
+              "type": "integer",
+              "minimum": 1000000000000,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "Unix time in milliseconds, inclusive.",
+            "schema": {
+              "description": "Unix time in milliseconds, inclusive.",
+              "type": "integer",
+              "minimum": 1000000000000,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "snapshot",
+            "required": true,
+            "in": "query",
+            "description": "Opaque token of the list the reader is looking at. Send it back unchanged.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+:\\d+:(\\d+(,\\d+)*)?$",
+              "description": "Opaque token of the list the reader is looking at. Send it back unchanged.",
+              "example": "1705:1708:1706,1707"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Whether there are unseen events.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "hasNew": {
+                      "type": "boolean",
+                      "description": "True when events matching the filters arrived after the list was loaded."
+                    }
+                  },
+                  "required": [
+                    "hasNew"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query is invalid. `message` lists each problem as \"field: reason\".",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Check for events the reader has not seen",
         "tags": [
           "Events"
         ]

@@ -6,6 +6,10 @@ import {
   ListEventsQueryDto,
   ListEventsResponseDto,
 } from './dto/list-events.dto.js';
+import {
+  NewEventsQueryDto,
+  NewEventsResponseDto,
+} from './dto/new-events.dto.js';
 import { cursorCodec } from './dto/cursor.js';
 import { toEventItem } from './events.mapper.js';
 
@@ -26,7 +30,7 @@ export class EventsService {
       cursor,
     };
 
-    const rows = await this.repository.getEvents(filter);
+    const { rows, snapshot } = await this.repository.getEvents(filter);
     const items = rows.slice(0, limit);
     const last = items.at(-1);
 
@@ -35,7 +39,20 @@ export class EventsService {
         ? cursorCodec.encode({ occurredAt: last.occurred_at, id: last.id })
         : null;
 
-    return { items: items.map(toEventItem), nextCursor };
+    return { items: items.map(toEventItem), nextCursor, snapshot };
+  }
+
+  async hasNewEvents(query: NewEventsQueryDto): Promise<NewEventsResponseDto> {
+    const { type, startDate, endDate, snapshot } = query;
+
+    const hasNew = await this.repository.hasNewEvents({
+      types: type,
+      from: startDate,
+      to: endDate,
+      snapshot,
+    });
+
+    return { hasNew };
   }
 
   async recordEvent(body: RecordEventDto) {
