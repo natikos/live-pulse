@@ -36,36 +36,30 @@ echo 'DATABASE_URL=postgresql://<user>:<password>@localhost:5432/livepulse' > .e
 Every example below is run from `scripts/`. Add `--help` to any of them to see the options.
 To skip typing `--env-file .env` each time: `export UV_ENV_FILE=.env`.
 
-### seed_events.py
+### seed_events_prod.py
 
-Bulk-loads synthetic events with `COPY` (1M rows in about 6 s). The same options always give the same rows.
-It refuses a non-empty table unless `--truncate` is passed. `--truncate` deletes every row in `events`.
+Bulk-loads synthetic events shaped like production with `COPY`, then runs `ANALYZE`. The same options always give the same rows.
+It **always empties `events` first** (restarting its ids), in the same transaction as the load, so a failed load leaves the table as it was. Local use only.
+
+The data: `created_at = occurred_at + lag` (never in the future), rows inserted in `created_at` order, `occurred_at` spread over 5 days with a spike and a ramp near the end, and type mix and payloads that depend on the group. The requirements are in the docstring of the script.
 
 | Option | Default | Meaning |
 |--------|---------|---------|
 | `--rows` | `10` | How many events to insert |
 | `--seed` | `42` | Seed of the random generator |
-| `--days` | `30` | Length of the time window the events are spread over |
-| `--end` | `2026-11-02` | End of the window, UTC. Formats: `2026-11-02`, `2026-11-02T12:00:00` |
-| `--truncate` / `--no-truncate` | off | Empty `events` first and restart its ids |
-| `--database-url` | `$DATABASE_URL` | Overrides the connection string |
+| `--end` | the current hour, UTC | End of the window, UTC. Formats: `2026-11-02`, `2026-11-02T12:00:00` |
+
+The connection string comes from `$DATABASE_URL`. The script logs one line per step with timings and the group and type mix.
 
 ```bash
-# 10 events into an empty table
-uv run --env-file .env seed_events.py
+# 10 events
+uv run --env-file .env seed_events_prod.py
 
-# 1M events for the list measurements (empties the table first)
-uv run --env-file .env seed_events.py --rows 1000000 --truncate
+# 1M events for the list measurements
+uv run --env-file .env seed_events_prod.py --rows 1000000
 
-# a different sample
-uv run --env-file .env seed_events.py --rows 1000000 --seed 7 --truncate
-
-# a denser one: the same 1M events in 7 days
-uv run --env-file .env seed_events.py --rows 1000000 --days 7 --truncate
-
-# every option
-uv run --env-file .env seed_events.py --rows 1000000 --seed 42 --days 30 --end 2026-11-02 --truncate \
-  --database-url postgresql://<user>:<password>@localhost:5433/livepulse_test
+# a different sample, and a fixed end of the window
+uv run --env-file .env seed_events_prod.py --rows 1000000 --seed 7 --end 2026-11-02
 ```
 
 ### probe_availability.py

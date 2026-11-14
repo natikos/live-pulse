@@ -23,6 +23,13 @@ dev = ["ruff>=0.6", "pytest>=8.3", "pyright>=1.1.380"]
 line-length = 100
 target-version = "py312"
 
+[tool.ruff.lint]
+extend-select = ["I"]
+
 [tool.pyright]
 pythonVersion = "3.12"
 typeCheckingMode = "standard"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

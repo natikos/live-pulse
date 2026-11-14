@@ -21,6 +21,23 @@ Written by Claude after reviews and accepted tickets. See [HANDBOOK_GUIDE.md](HA
 
 <!-- Entries go below, newest first. -->
 
+### 2026-11-12: Production-shaped seed data derived from the client's numbers (work in progress)
+- **Issue / PR:** none yet (branch `feat/seed-events-prod`, `scripts/seed_events_prod.py`).
+- **Decision:** `occurred_at` is a mixture of three groups over a fixed 5-day window ending at `--end`: an even **baseline**, a normal-shaped **spike** (3.5 h, ending 45 min before the end) and a **ramp** in the last hour. The group shares are not guessed; they come from two equations built from the client's targets (35% of events in the last day, 4.5% in the last hour). `created_at = occurred_at + lag`; a value that falls outside the window is **redrawn, not clamped**. `--days` was dropped because the shares only hold for 5 days.
+- **Alternatives considered:** one normal distribution over the window (no baseline, edges almost empty, the last hour is quiet); clamping to the window edge (a spike of equal timestamps on the boundary); dropping late events instead of redrawing the lag (truer lag distribution, but needs top-up batches to keep the row count); keeping `--days` (the shares silently stop matching the client's numbers for any other value).
+- **Reasoning:** the planner, BRIN and the cursor behave differently on data shaped like production, so the shape is a requirement, not a detail. Deriving the shares from the targets keeps the data tied to what the business looks at (last day, last hour), and the measured result confirms it: 35.0% / 4.51% / spike 15.6% / peak 11x the baseline hour on 200k rows.
+- **Reviewer feedback:**
+  - BLOCKER (found by measuring): the first client numbers could not all hold. A 1.5 h spike of 18.75% of events gave a peak of 21x the baseline hour (asked: 8-10x) and the last hour held 0.7% (asked: 4-5%). They went back to the client, who kept the spike share, lengthened the spike and asked for a ramp in the last hour.
+  - BLOCKER (fixed): with the wider spike, values landed after `end`; redrawing replaced a clamp.
+  - SHOULD-FIX (fixed): a negative derived share silently gave its rows to the other groups; `derive_shares` now raises `ValueError`. `MIN_LAG` duplicated a literal in the lag buckets.
+  - NIT (fixed): lag buckets as module constants, `BUCKETS` naming.
+  - BLOCKER (found by CI and a hanging local run): `DATABASE_URL` was read at import, so the tests could not import the module without a database. It is now read by `database_url()` when a connection opens, with a clear message if it is missing. A module-level `assert` only moved the failure.
+  - BLOCKER (found by a hanging test): after `lag = 0` was removed, a test that gave the redraw loop a room smaller than `MIN_LAG` could never finish; `while lag > room` redraws forever. The impossible cases were removed from the test.
+- **What changed:** `derive_shares`, `draw_within_window`, `generate_distributed_occurred_at`, `generate_created_at`, event types and payloads shaped by group, `TRUNCATE` + `COPY` in one transaction and `ANALYZE` after it, one log line per step with timings and the group and type mix, pytest tests, a `pytest` step in CI. The old `seed_events.py` was removed: its `created_at` was "now" for every row and rows were sorted by `occurred_at`, which is the tidiness this script exists to avoid.
+- **Lesson:** when a requirement is a shape, turn it into numbers you can measure, and measure the generated data against them before building on top. Two of the client's numbers contradicted each other, and only the measurement showed it. Redrawing the lag near the end makes those lags a little shorter than real ones; that is a known, cheap-to-reverse simplification.
+- **Lesson (tests):** a loop that redraws until a condition holds needs a test for the case where the condition can never hold; it hangs instead of failing. Do not pipe a test run into `tail` and chain a commit after it: the pipe hides the exit code of the tests.
+- **Related chapter:** [databases.md](topics/databases.md)
+
 ### 2026-11-03: MongoDB enters as alert-service storage (Stage 5) and a side benchmark, not in the monolith
 - **Issue / PR:** none yet (planning discussion).
 - **Decision:** add MongoDB in two places: (A) alert-service owns a MongoDB database for alert rules after the Stage 5 extraction; (C) experiment E19 benchmarks the same event workload on Postgres and MongoDB. Postgres stays the only store for events.
@@ -185,7 +202,7 @@ Written by Claude after reviews and accepted tickets. See [HANDBOOK_GUIDE.md](HA
 - **Issue / PR:** #4 / PR #9
 - **Decision:** the repository filters by `(occurred_at, id)` below the cursor; the service reads one row past the page to learn whether another page exists and builds `nextCursor` from the last returned row.
 - **Alternatives considered:** `OFFSET` (cost grows with depth, rows shift while new events arrive); a separate `count(*)` to detect the last page (a second query that is slow on 1M rows).
-- **Reasoning:** keyset cost does not depend on depth, and a new event does not skip or repeat a row for a reader who is paging. Ties in `occurred_at` are broken by `id`; the seeding script deliberately repeats the previous timestamp for 5% of rows to exercise that.
+- **Reasoning:** keyset cost does not depend on depth, and a new event does not skip or repeat a row for a reader who is paging. Ties in `occurred_at` are broken by `id`; the seeding script keeps `occurred_at` at millisecond precision, so some values are equal and the tie-breaker is exercised.
 - **Reviewer feedback:** none recorded beyond the review of #4 above.
 - **What changed:** cursor codec, paginated response (`items`, `nextCursor`), repository and service.
 - **Lesson:** keyset paging needs a total order; the tie-breaker is part of the cursor, not a detail.
