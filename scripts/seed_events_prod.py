@@ -33,10 +33,13 @@ Requirements the data must meet, because each one changes a query plan or a test
 """
 
 import json
+import logging
 import math
 import os
 import random
+import time
 import uuid
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -45,6 +48,8 @@ from typing import Annotated, Any, Literal, get_args
 
 import psycopg
 import typer
+
+logger = logging.getLogger(__name__)
 
 Bucket = Literal["fast", "slow", "offline"]
 Group = Literal["baseline", "spike", "ramp"]
@@ -144,7 +149,6 @@ LAG_LIMITS: dict[Bucket, tuple[float, float, float]] = {
 SPIKE_CENTER_BEFORE_END = SPIKE_ENDS_BEFORE_END + SPIKE_DURATION / 2
 # +-2 sigma holds ~95% of the values, so 4 sigma is the spike duration.
 SPIKE_SIGMA = SPIKE_DURATION / 4
-DATABASE_URL = os.environ["DATABASE_URL"]
 
 
 @dataclass(frozen=True)
@@ -364,9 +368,17 @@ def make_row(
     )
 
 
+def database_url() -> str:
+    # Read on use, not on import, so the tests can import this module without a database.
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        raise SystemExit("DATABASE_URL is not set")
+    return url
+
+
 def replace_events(table_rows: list[tuple[Any, ...]]) -> None:
     # TRUNCATE and COPY share one transaction: if COPY fails, the old rows stay.
-    with psycopg.connect(DATABASE_URL) as connection:
+    with psycopg.connect(database_url()) as connection:
         connection.execute("TRUNCATE events RESTART IDENTITY")
         with (
             connection.cursor() as cursor,
@@ -379,8 +391,12 @@ def replace_events(table_rows: list[tuple[Any, ...]]) -> None:
                 copy.write_row(row)
 
 
-def update_stats():
-    with psycopg.connect(DATABASE_URL) as connection:
+def format_counts(counts: Counter[str], total: int) -> str:
+    return ", ".join(f"{name} {count / total:.1%}" for name, count in counts.most_common())
+
+
+def update_stats() -> None:
+    with psycopg.connect(database_url()) as connection:
         connection.execute("ANALYZE events;")
 
 
@@ -399,11 +415,15 @@ def main(
         # The default is evaluated on every run of the script, so --help shows the real end.
     ] = datetime.now(UTC).replace(minute=0, second=0, microsecond=0),  # noqa: B008
 ) -> None:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+    started = time.perf_counter()
     rng = random.Random(seed)
     end = end.replace(tzinfo=UTC) if end.tzinfo is None else end
+    logger.info("Seeding %d events, seed=%d, window ends %s", rows, seed, end.isoformat())
     occurred_at, groups = generate_distributed_occurred_at(end, rows, rng)
     created_at = generate_created_at(occurred_at, end, rng)
     event_types = generate_event_types(rng, groups)
+    logger.info("Generated timestamps and types in %.1f s", time.perf_counter() - started)
     # Sorted by created_at, so id grows with it; the group travels along to shape the payload.
     events = sorted(zip(created_at, occurred_at, event_types, groups, strict=True))
     # Rows are built after sorting: every rng call below is part of what a seed reproduces.
@@ -411,8 +431,14 @@ def main(
         make_row(rng, event_type, group, happened, received)
         for received, happened, event_type, group in events
     ]
+    logger.info("Built %d rows in %.1f s", len(table_rows), time.perf_counter() - started)
+    logger.info("Groups: %s", format_counts(Counter(groups), rows))
+    logger.info("Types: %s", format_counts(Counter(event_types), rows))
+    loading = time.perf_counter()
     replace_events(table_rows)
+    logger.info("Truncated and copied into events in %.1f s", time.perf_counter() - loading)
     update_stats()
+    logger.info("Analyzed events, done in %.1f s", time.perf_counter() - started)
 
 
 if __name__ == "__main__":

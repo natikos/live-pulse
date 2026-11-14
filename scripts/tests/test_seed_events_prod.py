@@ -41,7 +41,7 @@ def test_occurred_at_has_millisecond_precision(occurred_at: list[datetime]) -> N
 
 
 def test_occurred_at_is_deterministic(occurred_at: list[datetime]) -> None:
-    again = seed.generate_distributed_occurred_at(END, ROWS, random.Random(42))
+    again, _ = seed.generate_distributed_occurred_at(END, ROWS, random.Random(42))
 
     assert again == occurred_at
 
@@ -62,8 +62,9 @@ def test_created_at_is_never_before_occurred_at_or_after_end(occurred_at: list[d
     assert max(created_at) <= END
 
 
-@pytest.mark.parametrize("room", [timedelta(0), timedelta(microseconds=500), seed.MIN_LAG])
-def test_created_at_terminates_right_before_the_end(room: timedelta) -> None:
-    created_at = seed.generate_created_at([END - room], END, random.Random(1))
+def test_created_at_terminates_right_before_the_end() -> None:
+    # The latest occurred_at leaves exactly MIN_LAG of room; a smaller room cannot happen.
+    occurred = END - seed.MIN_LAG
+    created_at = seed.generate_created_at([occurred], END, random.Random(1))
 
-    assert END - room <= created_at[0] <= END
+    assert occurred <= created_at[0] <= END
