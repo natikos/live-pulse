@@ -1,4 +1,4 @@
-import { Generated } from 'kysely';
+import { ColumnType, Generated } from 'kysely';
 import { EventModel } from '../events/event.model.js';
 
 export interface Database {
@@ -13,6 +13,8 @@ export interface EventsTable {
   source: EventModel['source'];
   user_id: string | null;
   device_id: string | null;
+  // xid8 is a string in pg. Set by the DB; NULL for rows from before 0005.
+  insert_xid: ColumnType<string | null, never, never>;
   created_at: Generated<Date>;
   occurred_at: Date;
 }
