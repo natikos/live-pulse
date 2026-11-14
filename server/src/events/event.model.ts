@@ -68,6 +68,14 @@ export interface EventsFilter {
   };
 }
 
+// The list filters plus the snapshot of the list the reader is looking at.
+export interface NewEventsFilter extends Pick<
+  EventsFilter,
+  'types' | 'from' | 'to'
+> {
+  snapshot: string;
+}
+
 // Shared by the model and the DTO, so the page list lives in one place.
 export const PAGES = [
   'home',

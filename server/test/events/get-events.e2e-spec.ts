@@ -50,7 +50,11 @@ describe('GET /events (e2e)', () => {
       .get('/events')
       .expect(HttpStatus.OK);
 
-    expect(Object.keys(res.body).sort()).toEqual(['items', 'nextCursor']);
+    expect(Object.keys(res.body).sort()).toEqual([
+      'items',
+      'nextCursor',
+      'snapshot',
+    ]);
     // Guards against `selectAll()` leaking the internal id and created_at.
     expect(Object.keys(res.body.items[0]).sort()).toEqual([
       'device_id',
@@ -176,6 +180,18 @@ describe('GET /events (e2e)', () => {
 
       expect(res.body.items).toHaveLength(3);
       expect(typeof res.body.nextCursor).toBe('string');
+    });
+
+    it('returns a snapshot on the first page only', async () => {
+      await insertAt([0, 1, 2, 3]);
+
+      const first = await get('limit=3').expect(HttpStatus.OK);
+      const second = await get(
+        `limit=3&cursor=${first.body.nextCursor}`,
+      ).expect(HttpStatus.OK);
+
+      expect(first.body.snapshot).toMatch(/^\d+:\d+:/);
+      expect(second.body.snapshot).toBeNull();
     });
 
     it('does not return an empty last page when the total is a multiple of the limit', async () => {
@@ -363,7 +379,11 @@ describe('GET /events (e2e)', () => {
 
       const res = await get('type=error').expect(HttpStatus.OK);
 
-      expect(res.body).toEqual({ items: [], nextCursor: null });
+      expect(res.body).toEqual({
+        items: [],
+        nextCursor: null,
+        snapshot: expect.stringMatching(/^\d+:\d+:/),
+      });
     });
 
     it.each([
