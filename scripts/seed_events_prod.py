@@ -34,6 +34,7 @@ Requirements the data must meet, because each one changes a query plan or a test
 
 import json
 import math
+import os
 import random
 import uuid
 from collections.abc import Callable
@@ -42,6 +43,7 @@ from datetime import UTC, datetime, timedelta
 from statistics import NormalDist
 from typing import Annotated, Any, Literal, get_args
 
+import psycopg
 import typer
 
 Bucket = Literal["fast", "slow", "offline"]
@@ -142,6 +144,7 @@ LAG_LIMITS: dict[Bucket, tuple[float, float, float]] = {
 SPIKE_CENTER_BEFORE_END = SPIKE_ENDS_BEFORE_END + SPIKE_DURATION / 2
 # +-2 sigma holds ~95% of the values, so 4 sigma is the spike duration.
 SPIKE_SIGMA = SPIKE_DURATION / 4
+DATABASE_URL = os.environ["DATABASE_URL"]
 
 
 @dataclass(frozen=True)
@@ -361,6 +364,26 @@ def make_row(
     )
 
 
+def replace_events(table_rows: list[tuple[Any, ...]]) -> None:
+    # TRUNCATE and COPY share one transaction: if COPY fails, the old rows stay.
+    with psycopg.connect(DATABASE_URL) as connection:
+        connection.execute("TRUNCATE events RESTART IDENTITY")
+        with (
+            connection.cursor() as cursor,
+            cursor.copy(
+                "COPY events (event_id, type, source, user_id, device_id, payload, "
+                "occurred_at, created_at) FROM STDIN"
+            ) as copy,
+        ):
+            for row in table_rows:
+                copy.write_row(row)
+
+
+def update_stats():
+    with psycopg.connect(DATABASE_URL) as connection:
+        connection.execute("ANALYZE events;")
+
+
 def main(
     rows: Annotated[int, typer.Option(min=1, help="How many events to insert")] = 10,
     seed: Annotated[
@@ -388,7 +411,8 @@ def main(
         make_row(rng, event_type, group, happened, received)
         for received, happened, event_type, group in events
     ]
-    print(table_rows[:3])
+    replace_events(table_rows)
+    update_stats()
 
 
 if __name__ == "__main__":
