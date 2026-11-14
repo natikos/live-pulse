@@ -12,7 +12,8 @@ ROWS = 50_000
 
 @pytest.fixture(scope="module")
 def occurred_at() -> list[datetime]:
-    return seed.generate_distributed_occurred_at(END, ROWS, random.Random(42))
+    occurred_at, _ = seed.generate_distributed_occurred_at(END, ROWS, random.Random(42))
+    return occurred_at
 
 
 def test_shares_sum_to_one_and_are_not_negative() -> None:
