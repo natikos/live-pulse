@@ -31,8 +31,11 @@ Written by Claude after reviews and accepted tickets. See [HANDBOOK_GUIDE.md](HA
   - BLOCKER (fixed): with the wider spike, values landed after `end`; redrawing replaced a clamp.
   - SHOULD-FIX (fixed): a negative derived share silently gave its rows to the other groups; `derive_shares` now raises `ValueError`. `MIN_LAG` duplicated a literal in the lag buckets.
   - NIT (fixed): lag buckets as module constants, `BUCKETS` naming.
-- **What changed:** `derive_shares`, `draw_within_window`, `generate_distributed_occurred_at`, `generate_created_at`, 10 pytest tests, a `pytest` step in CI.
+  - BLOCKER (found by CI and a hanging local run): `DATABASE_URL` was read at import, so the tests could not import the module without a database. It is now read by `database_url()` when a connection opens, with a clear message if it is missing. A module-level `assert` only moved the failure.
+  - BLOCKER (found by a hanging test): after `lag = 0` was removed, a test that gave the redraw loop a room smaller than `MIN_LAG` could never finish; `while lag > room` redraws forever. The impossible cases were removed from the test.
+- **What changed:** `derive_shares`, `draw_within_window`, `generate_distributed_occurred_at`, `generate_created_at`, event types and payloads shaped by group, `TRUNCATE` + `COPY` in one transaction and `ANALYZE` after it, one log line per step with timings and the group and type mix, pytest tests, a `pytest` step in CI. The old `seed_events.py` was removed: its `created_at` was "now" for every row and rows were sorted by `occurred_at`, which is the tidiness this script exists to avoid.
 - **Lesson:** when a requirement is a shape, turn it into numbers you can measure, and measure the generated data against them before building on top. Two of the client's numbers contradicted each other, and only the measurement showed it. Redrawing the lag near the end makes those lags a little shorter than real ones; that is a known, cheap-to-reverse simplification.
+- **Lesson (tests):** a loop that redraws until a condition holds needs a test for the case where the condition can never hold; it hangs instead of failing. Do not pipe a test run into `tail` and chain a commit after it: the pipe hides the exit code of the tests.
 - **Related chapter:** [databases.md](topics/databases.md)
 
 ### 2026-11-03: MongoDB enters as alert-service storage (Stage 5) and a side benchmark, not in the monolith
@@ -199,7 +202,7 @@ Written by Claude after reviews and accepted tickets. See [HANDBOOK_GUIDE.md](HA
 - **Issue / PR:** #4 / PR #9
 - **Decision:** the repository filters by `(occurred_at, id)` below the cursor; the service reads one row past the page to learn whether another page exists and builds `nextCursor` from the last returned row.
 - **Alternatives considered:** `OFFSET` (cost grows with depth, rows shift while new events arrive); a separate `count(*)` to detect the last page (a second query that is slow on 1M rows).
-- **Reasoning:** keyset cost does not depend on depth, and a new event does not skip or repeat a row for a reader who is paging. Ties in `occurred_at` are broken by `id`; the seeding script deliberately repeats the previous timestamp for 5% of rows to exercise that.
+- **Reasoning:** keyset cost does not depend on depth, and a new event does not skip or repeat a row for a reader who is paging. Ties in `occurred_at` are broken by `id`; the seeding script keeps `occurred_at` at millisecond precision, so some values are equal and the tie-breaker is exercised.
 - **Reviewer feedback:** none recorded beyond the review of #4 above.
 - **What changed:** cursor codec, paginated response (`items`, `nextCursor`), repository and service.
 - **Lesson:** keyset paging needs a total order; the tie-breaker is part of the cursor, not a detail.
