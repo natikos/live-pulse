@@ -45,10 +45,15 @@ export class EventsRepository {
       .setAccessMode('read only')
       .execute(async (trx) => {
         const rows = await this.selectPage(trx, filter);
-        const { rows: snapshots } = await sql<{ snapshot: string }>`
+        const {
+          rows: [row],
+        } = await sql<{ snapshot: string }>`
           SELECT pg_current_snapshot()::text AS snapshot
         `.execute(trx);
-        return { rows, snapshot: snapshots[0]!.snapshot };
+        if (!row) {
+          throw new Error('pg_current_snapshot() returned no row');
+        }
+        return { rows, snapshot: row.snapshot };
       });
   }
 
