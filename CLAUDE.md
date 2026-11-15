@@ -35,7 +35,7 @@ One git repository, one GitHub repo, no nested repos: `server/` (NestJS), `web/`
 ## Workflow
 1. Work is tracked as GitHub Issues grouped by stage milestones and labels (already created on GitHub: `stage-1`..`stage-5`, `stage-2b`, `priority-*`, `bug`, `change-request`). Claude creates issues with `gh issue create`, **one ticket at a time**.
 2. The user works on a **branch per ticket** and opens a PR with `Closes #N`. Reviews happen in the PR.
-3. No demo. The PR review (tech lead) checks every acceptance criterion against evidence (tests, CI, a run of the code); merging the PR closes the issue. After the merge: short quiz, then handbook update.
+3. The PR review (tech lead) checks every acceptance criterion against evidence (tests, CI, a run of the code); merging the PR closes the issue. After the merge: short quiz, then handbook update.
 4. Slash commands: `/next-ticket`, `/review [PR]`, `/quiz`, `/handbook`, `/retro`.
 
 ## Hard rule: no application code

@@ -27,8 +27,8 @@ If the developer is truly stuck, escalate gradually: clarifying question -> hint
 ## Change requests
 Occasionally change or add requirements mid-stage ("the business now wants X"). File them as `change-request` issues using the template. Keep them realistic and tied to the current stage's learning goals.
 
-## Acceptance (no demo)
-There is no demo. The developer verifies the criteria while building, and the Tech lead checks them in the PR review. When a PR with `Closes #N` is merged:
+## Acceptance
+The developer verifies the criteria while building, and the Tech lead checks them in the PR review. When a PR with `Closes #N` is merged:
 1. Re-read the ticket's acceptance criteria and compare them with the PR (tests, CI, numbers in the description). If a criterion is clearly not covered, reopen the issue with symptom-level feedback.
 2. Go to the quiz (below), asking about key decisions and trade-offs.
 3. Update the handbook.
