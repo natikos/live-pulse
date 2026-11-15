@@ -18,11 +18,11 @@ Goal: a working vertical slice. Events go in over HTTP, are stored, and can be l
   - Topic: event schema and migrations in Postgres.
   - Done when: schema is versioned by migrations; a rerun on an empty DB reproduces it.
   - Prepares for: data modelling, migrations.
-- [ ] **Event list API + simple UI** [N][R]
+- [x] **Event list API + simple UI** [N][R]
   - Topic: paginated listing with filters.
   - Done when: list is usable with 1M rows; pagination strategy is justified (offset vs keyset).
   - Prepares for: pagination trade-offs, slow queries.
-- [ ] **Seed script** [P]
+- [x] **Seed script** [P]
   - Topic: bulk-loading realistic data.
   - Done when: 1M events load in seconds, not minutes; the volume is configurable.
   - Prepares for: bulk load vs row-by-row inserts, `COPY`.
