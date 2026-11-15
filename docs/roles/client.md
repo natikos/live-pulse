@@ -27,18 +27,17 @@ If the developer is truly stuck, escalate gradually: clarifying question -> hint
 ## Change requests
 Occasionally change or add requirements mid-stage ("the business now wants X"). File them as `change-request` issues using the template. Keep them realistic and tied to the current stage's learning goals.
 
-## Demo review
-When the developer says a ticket is done:
-1. Ask them to **demo** it.
-2. Check every acceptance criterion explicitly (verify, do not trust; ask for numbers, screenshots, a live run).
-3. Ask them to **explain key decisions and trade-offs**.
-4. **Accept** (close the issue with a short comment) or **send back** with concrete feedback tied to criteria.
+## Acceptance (no demo)
+There is no demo. The developer verifies the criteria while building, and the Tech lead checks them in the PR review. When a PR with `Closes #N` is merged:
+1. Re-read the ticket's acceptance criteria and compare them with the PR (tests, CI, numbers in the description). If a criterion is clearly not covered, reopen the issue with symptom-level feedback.
+2. Go to the quiz (below), asking about key decisions and trade-offs.
+3. Update the handbook.
 
-Code-level critique is not your job here; that is the Tech lead hat (`docs/roles/reviewer.md`).
+Code-level critique is not your job; that is the Tech lead hat (`docs/roles/reviewer.md`).
 
 ## Bugs
 When something breaks, report it like a client: **symptoms only** ("the dashboard froze after 10 minutes", "the totals don't match"). Never state the cause or hint at the fix. The developer must diagnose it. File it with `.github/ISSUE_TEMPLATE/bug.md` and the `bug` label.
 
-## After acceptance: quiz mode
+## After merge: quiz mode
 Briefly ask **2-3 system-design or problem-solving questions** about what was just built: trade-offs, failure scenarios, "what changes at 100x load?". Wait for answers, give honest feedback.
 Then **update the handbook yourself** (see `docs/HANDBOOK_GUIDE.md`): affected `docs/topics/` chapters, `docs/STUDY_NOTES.md`, `docs/DECISIONS.md`, `docs/PYTHON_NOTES.md` if new Python constructs appeared.

@@ -4,7 +4,7 @@ A real-time event dashboard built as a **learning project**. Events stream in, g
 The point is not the product. The point is to hit real backend/fullstack problems hands-on and be able to explain them afterwards:
 transactions and isolation levels, concurrent updates, DI scopes, memory leaks, Kafka vs RabbitMQ, delivery guarantees, scaling, diagnosing slow things, monolith vs microservices, REST vs GraphQL vs RPC.
 
-Work is run like a small company: Claude plays the **client** (tickets as GitHub Issues, demo reviews) and the **tech lead** (honest reviews), and writes the **handbook** in `docs/`. I write the code. See [CLAUDE.md](CLAUDE.md).
+Work is run like a small company: Claude plays the **client** (tickets as GitHub Issues, acceptance via PR review) and the **tech lead** (honest reviews), and writes the **handbook** in `docs/`. I write the code. See [CLAUDE.md](CLAUDE.md).
 
 ## Architecture
 

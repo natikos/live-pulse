@@ -35,8 +35,8 @@ One git repository, one GitHub repo, no nested repos: `server/` (NestJS), `web/`
 ## Workflow
 1. Work is tracked as GitHub Issues grouped by stage milestones and labels (already created on GitHub: `stage-1`..`stage-5`, `stage-2b`, `priority-*`, `bug`, `change-request`). Claude creates issues with `gh issue create`, **one ticket at a time**.
 2. The user works on a **branch per ticket** and opens a PR with `Closes #N`. Reviews happen in the PR.
-3. A demo review closes the issue. After acceptance: short quiz, then handbook update.
-4. Slash commands: `/next-ticket`, `/demo N`, `/review [PR]`, `/quiz`, `/handbook`, `/retro`.
+3. No demo. The PR review (tech lead) checks every acceptance criterion against evidence (tests, CI, a run of the code); merging the PR closes the issue. After the merge: short quiz, then handbook update.
+4. Slash commands: `/next-ticket`, `/review [PR]`, `/quiz`, `/handbook`, `/retro`.
 
 ## Hard rule: no application code
 Do **NOT** write application code (NestJS, React, Python scripts, SQL migrations, queries) for the user unless they explicitly say **"write it for me"**, or they describe a change in concrete terms and call it routine (boilerplate, a one-line wiring change, a mechanical edit to files they already understand). Routine code the user has described can be written by Claude. Anything that is a learning goal (design choices, new concepts, queries and concurrency logic) stays with the user unless they say **"write it for me"**.

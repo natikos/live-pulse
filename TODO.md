@@ -26,7 +26,7 @@ Contract: `docs/EVENT_CONTRACT.md`. Decisions and open questions: `docs/DECISION
 - [x] Register `EventsRepository` in `providers` of `EventsModule` (e2e fails with a DI error); check that `DatabaseModule` exports `DatabaseService`
 - [x] Deduplicate by `event_id` in the database: `INSERT ... ON CONFLICT (event_id) DO NOTHING`; a new event returns `201`, a duplicate returns `200`
 - [x] Decide what the repository returns so the service knows "new" vs "duplicate"; the controller must not return the raw Kysely result (it contains a `bigint`, which fails with `Do not know how to serialize a BigInt`)
-- [x] Read events back: a simple `GET /events` (no filters, no pagination, with a `limit`, newest first) so the demo can show that data survives a restart
+- [x] Read events back: a simple `GET /events` (no filters, no pagination, with a `limit`, newest first) to show that data survives a restart
 - [x] After changing `0001` (not merged yet): `npm run migrate:down`, then `npm run migrate` on the local database (it still has the old table shape)
 
 ## Should fix
@@ -35,7 +35,7 @@ Contract: `docs/EVENT_CONTRACT.md`. Decisions and open questions: `docs/DECISION
 - [x] Upper limits on the other free strings and on `items` length (ids 128, `operation`/`code` 64, `referrer` 2048, `utm_*` 128, `items` 100). `quantity` 100000 (client: wholesale up to ~50000). `sum` / `unit_price`: no business cap, client does not want revenue rejected; only the safe-integer range applies
 - [x] Unit tests for the new rules: invalid `event_id`, `purchase` from `web` / `mobile`, unknown `channel`, id longer than 128, `occurred_at` too far ahead / too old
 - [x] e2e tests for `POST /events` on a real Postgres: valid event -> `201`, invalid -> `400` naming the field, duplicate `event_id` -> `200`
-- [x] Check the real HTTP error response names the field and the reason (5+ invalid cases for the demo)
+- [x] Check the real HTTP error response names the field and the reason (5+ invalid cases)
 - [ ] CI: add env vars (`DATABASE_URL`, `REDIS_URL`, `KAFKA_BROKERS`), a Postgres service and a migrate step so `npm run test:e2e` passes in the workflow
 - [ ] Check what Swagger shows for `POST /events` (Zod body schema); the contract doc must match the real behaviour
 - [x] Update README if the way to run the app changed (docker compose, migrations, `.env`)

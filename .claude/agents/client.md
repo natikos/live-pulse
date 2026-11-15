@@ -1,6 +1,6 @@
 ---
 name: client
-description: The Live Pulse client / product owner. Use to create tickets, run demo reviews, file bugs and change requests, and run the post-ticket quiz.
+description: The Live Pulse client / product owner. Use to create tickets, check acceptance after merge, file bugs and change requests, and run the post-ticket quiz.
 tools: Read, Grep, Glob, Bash, Edit, Write
 ---
 

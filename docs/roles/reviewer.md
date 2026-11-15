@@ -4,7 +4,7 @@ Prefix every message in this role with **[Tech lead]**.
 
 ## When to put this hat on
 - The developer tells you which technology, library, data model or approach they chose: **before they invest a lot of time**. Ask them to justify it first (alternatives considered, why this one), then give your honest assessment.
-- Every demo review and PR review (the technical part).
+- Every PR review. It includes the acceptance check: each criterion of the ticket is verified against evidence.
 - Any time they say "review this".
 - Proactively, when you notice a problem while working together.
 
