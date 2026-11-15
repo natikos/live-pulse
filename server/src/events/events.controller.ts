@@ -27,6 +27,12 @@ import {
   ListEventsResponseDto,
   listEventsResponseSchema,
 } from './dto/list-events.dto.js';
+import {
+  type NewEventsQueryDto,
+  newEventsQuerySchema,
+  type NewEventsResponseDto,
+  newEventsResponseSchema,
+} from './dto/new-events.dto.js';
 import { badRequestResponseSchema } from '../common/api-error.dto.js';
 
 @Controller('events')
@@ -56,6 +62,29 @@ export class EventsController {
     @Query({ schema: listEventsQuerySchema }) query: ListEventsQueryDto,
   ): Promise<ListEventsResponseDto> {
     return this.eventsService.getEvents(query);
+  }
+
+  @Get('has-new')
+  @ApiOperation({
+    summary: 'Check for events the reader has not seen',
+    description:
+      'Takes the same filters as the list plus the `snapshot` token the list ' +
+      'returned. Answers whether matching events arrived since. It never ' +
+      'returns the events themselves: the reader refreshes the list when ready.',
+  })
+  @ApiOkResponse({
+    description: 'Whether there are unseen events.',
+    standardSchema: newEventsResponseSchema,
+  })
+  @ApiBadRequestResponse({
+    description:
+      'The query is invalid. `message` lists each problem as "field: reason".',
+    standardSchema: badRequestResponseSchema,
+  })
+  async hasNewEvents(
+    @Query({ schema: newEventsQuerySchema }) query: NewEventsQueryDto,
+  ): Promise<NewEventsResponseDto> {
+    return this.eventsService.hasNewEvents(query);
   }
 
   @Post()

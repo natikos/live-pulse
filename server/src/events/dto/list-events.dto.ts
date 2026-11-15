@@ -17,20 +17,46 @@ const timestampMs = z.coerce
   .min(MIN_OCCURRED_AT_MS)
   .transform((ms) => new Date(ms));
 
+// Shared by every endpoint that takes the list filters, so they cannot drift apart.
+export const eventFilterShape = {
+  type: z.preprocess((value) => {
+    if (value && !Array.isArray(value)) {
+      return [value];
+    }
+    return value;
+  }, z.array(eventType).optional()),
+  startDate: timestampMs.optional().meta({
+    description: 'Unix time in milliseconds, inclusive.',
+  }),
+  endDate: timestampMs.optional().meta({
+    description: 'Unix time in milliseconds, inclusive.',
+  }),
+};
+
+// A value below the minimum already failed the range check, so the
+// transform did not run and it is still a number. Compare only the
+// converted dates to avoid a second error.
+export function rejectReversedDates(
+  query: { startDate?: unknown; endDate?: unknown },
+  ctx: z.RefinementCtx,
+): void {
+  const { startDate, endDate } = query;
+  if (
+    startDate instanceof Date &&
+    endDate instanceof Date &&
+    startDate > endDate
+  ) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['endDate'],
+      message: 'endDate must not be earlier than startDate',
+    });
+  }
+}
+
 export const listEventsQuerySchema = z
   .strictObject({
-    type: z.preprocess((value) => {
-      if (value && !Array.isArray(value)) {
-        return [value];
-      }
-      return value;
-    }, z.array(eventType).optional()),
-    startDate: timestampMs.optional().meta({
-      description: 'Unix time in milliseconds, inclusive.',
-    }),
-    endDate: timestampMs.optional().meta({
-      description: 'Unix time in milliseconds, inclusive.',
-    }),
+    ...eventFilterShape,
     limit: z.coerce.number().int().min(1).max(100).default(50),
     // `?cursor=` is treated as absent, so it starts from the first page.
     cursor: z.preprocess(
@@ -38,23 +64,7 @@ export const listEventsQuerySchema = z
       cursorCodec.optional(),
     ),
   })
-  .superRefine((query, ctx) => {
-    // A value below the minimum already failed the range check, so the
-    // transform did not run and it is still a number. Compare only the
-    // converted dates to avoid a second error.
-    const { startDate, endDate } = query;
-    if (
-      startDate instanceof Date &&
-      endDate instanceof Date &&
-      startDate > endDate
-    ) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['endDate'],
-        message: 'endDate must not be earlier than startDate',
-      });
-    }
-  });
+  .superRefine(rejectReversedDates);
 
 export type ListEventsQueryDto = z.infer<typeof listEventsQuerySchema>;
 
@@ -101,6 +111,15 @@ export const listEventsResponseSchema = z.object({
     description:
       'Opaque. Pass as `cursor` to get the next page; `null` when there are no more events.',
   }),
+  snapshot: z
+    .string()
+    .nullable()
+    .meta({
+      description:
+        'Only on the first page (no `cursor`), otherwise `null`. Keep the first ' +
+        'one and send it to `GET /events/has-new` with the same filters.',
+      example: '1705:1708:1706,1707',
+    }),
 });
 
 export type ListEventsResponseDto = z.infer<typeof listEventsResponseSchema>;
