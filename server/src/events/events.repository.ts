@@ -2,7 +2,12 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Kysely, Selectable, SelectQueryBuilder, sql, SqlBool } from 'kysely';
 import { DatabaseService } from '../database/database.service.js';
 import { Database, EventsTable } from '../database/schema.js';
-import { EventModel, EventsFilter, NewEventsFilter } from './event.model.js';
+import {
+  EventModel,
+  EventsFilter,
+  HasNewEventsOutcome,
+  NewEventsFilter,
+} from './event.model.js';
 
 const EVENT_COLUMNS = [
   'id',
@@ -84,9 +89,9 @@ export class EventsRepository {
       .execute();
   }
 
-  async hasNewEvents(filter: NewEventsFilter): Promise<boolean> {
+  async hasNewEvents(filter: NewEventsFilter): Promise<HasNewEventsOutcome> {
     const { snapshot } = filter;
-    const query = this.applyFilters(
+    const candidates = this.applyFilters(
       this.db.selectFrom('events').select('id'),
       filter,
     )
@@ -95,11 +100,19 @@ export class EventsRepository {
       )
       .where(
         sql<SqlBool>`NOT pg_visible_in_snapshot(insert_xid::text::xid8, ${snapshot}::pg_snapshot)`,
-      )
-      .limit(1);
+      );
+
+    // One statement, so the answer and the returned token share one snapshot
+    // and an event committed after the check cannot be marked as seen.
+    const query = this.db.selectNoFrom((eb) => [
+      eb.exists(candidates).$castTo<boolean>().as('has_new'),
+      sql<string>`pg_current_snapshot()::text`.as('snapshot'),
+    ]);
 
     try {
-      return (await query.executeTakeFirst()) !== undefined;
+      const { has_new, snapshot: current } =
+        await query.executeTakeFirstOrThrow();
+      return { hasNew: has_new, snapshot: current };
     } catch (error) {
       // 22P02: the token has the right shape but is not a valid snapshot.
       if (error instanceof Error && 'code' in error && error.code === '22P02') {

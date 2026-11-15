@@ -366,7 +366,7 @@ export interface operations {
                 startDate?: number;
                 /** @description Unix time in milliseconds, inclusive. */
                 endDate?: number;
-                /** @description Opaque token of the list the reader is looking at. Send it back unchanged. */
+                /** @description Opaque token of what the reader has already seen: the one from the first page, or the one from the last `has-new` answer the reader acknowledged. Send it back unchanged. */
                 snapshot: string;
             };
             header?: never;
@@ -384,6 +384,11 @@ export interface operations {
                     "application/json": {
                         /** @description True when events matching the filters arrived after the list was loaded. */
                         hasNew: boolean;
+                        /**
+                         * @description Opaque token taken at the moment of this check. Replace the stored one with it only when the reader acknowledges the notice; adopting it earlier hides events that arrived in between.
+                         * @example 1705:1708:1706,1707
+                         */
+                        snapshot: string;
                     };
                 };
             };

@@ -543,11 +543,11 @@
             "name": "snapshot",
             "required": true,
             "in": "query",
-            "description": "Opaque token of the list the reader is looking at. Send it back unchanged.",
+            "description": "Opaque token of what the reader has already seen: the one from the first page, or the one from the last `has-new` answer the reader acknowledged. Send it back unchanged.",
             "schema": {
               "type": "string",
               "pattern": "^\\d+:\\d+:(\\d+(,\\d+)*)?$",
-              "description": "Opaque token of the list the reader is looking at. Send it back unchanged.",
+              "description": "Opaque token of what the reader has already seen: the one from the first page, or the one from the last `has-new` answer the reader acknowledged. Send it back unchanged.",
               "example": "1705:1708:1706,1707"
             }
           }
@@ -563,10 +563,17 @@
                     "hasNew": {
                       "type": "boolean",
                       "description": "True when events matching the filters arrived after the list was loaded."
+                    },
+                    "snapshot": {
+                      "type": "string",
+                      "pattern": "^\\d+:\\d+:(\\d+(,\\d+)*)?$",
+                      "description": "Opaque token taken at the moment of this check. Replace the stored one with it only when the reader acknowledges the notice; adopting it earlier hides events that arrived in between.",
+                      "example": "1705:1708:1706,1707"
                     }
                   },
                   "required": [
-                    "hasNew"
+                    "hasNew",
+                    "snapshot"
                   ],
                   "additionalProperties": false
                 }

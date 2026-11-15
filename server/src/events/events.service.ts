@@ -45,14 +45,12 @@ export class EventsService {
   async hasNewEvents(query: NewEventsQueryDto): Promise<NewEventsResponseDto> {
     const { type, startDate, endDate, snapshot } = query;
 
-    const hasNew = await this.repository.hasNewEvents({
+    return this.repository.hasNewEvents({
       types: type,
       from: startDate,
       to: endDate,
       snapshot,
     });
-
-    return { hasNew };
   }
 
   async recordEvent(body: RecordEventDto) {

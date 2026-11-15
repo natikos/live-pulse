@@ -76,6 +76,11 @@ export interface NewEventsFilter extends Pick<
   snapshot: string;
 }
 
+export interface HasNewEventsOutcome {
+  snapshot: string;
+  hasNew: boolean;
+}
+
 // Shared by the model and the DTO, so the page list lives in one place.
 export const PAGES = [
   'home',

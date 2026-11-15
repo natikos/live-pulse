@@ -5,6 +5,8 @@ import { DatabaseService } from '../../src/database/database.service.js';
 import { useTestApp } from '../helpers/app.js';
 import { insertEvents, truncateEvents } from '../helpers/database.js';
 
+const SNAPSHOT = expect.stringMatching(/^\d+:\d+:(\d+(,\d+)*)?$/);
+
 describe('GET /events/has-new (e2e)', () => {
   const getApp = useTestApp();
 
@@ -26,7 +28,7 @@ describe('GET /events/has-new (e2e)', () => {
 
     const res = await hasNew(`snapshot=${snapshot}`).expect(HttpStatus.OK);
 
-    expect(res.body).toEqual({ hasNew: false });
+    expect(res.body).toMatchObject({ hasNew: false, snapshot: SNAPSHOT });
   });
 
   it('is true for a late event with an old occurred_at', async () => {
@@ -38,7 +40,7 @@ describe('GET /events/has-new (e2e)', () => {
 
     const res = await hasNew(`snapshot=${snapshot}`).expect(HttpStatus.OK);
 
-    expect(res.body).toEqual({ hasNew: true });
+    expect(res.body).toMatchObject({ hasNew: true, snapshot: SNAPSHOT });
   });
 
   it('is true for an empty list that gets its first event', async () => {
@@ -47,7 +49,7 @@ describe('GET /events/has-new (e2e)', () => {
 
     const res = await hasNew(`snapshot=${snapshot}`).expect(HttpStatus.OK);
 
-    expect(res.body).toEqual({ hasNew: true });
+    expect(res.body).toMatchObject({ hasNew: true, snapshot: SNAPSHOT });
   });
 
   it('ignores new events that do not match the filters', async () => {
@@ -58,7 +60,7 @@ describe('GET /events/has-new (e2e)', () => {
       HttpStatus.OK,
     );
 
-    expect(res.body).toEqual({ hasNew: false });
+    expect(res.body).toMatchObject({ hasNew: false, snapshot: SNAPSHOT });
   });
 
   it('is true for an event that was uncommitted when the snapshot was taken', async () => {
@@ -84,7 +86,27 @@ describe('GET /events/has-new (e2e)', () => {
 
     const res = await hasNew(`snapshot=${snapshot}`).expect(HttpStatus.OK);
 
-    expect(res.body).toEqual({ hasNew: true });
+    expect(res.body).toMatchObject({ hasNew: true, snapshot: SNAPSHOT });
+  });
+
+  it('returns a token that hides what was reported and still finds what comes later', async () => {
+    const snapshot = await loadList();
+    await insertEvents(getApp(), [{}]);
+
+    const first = await hasNew(`snapshot=${snapshot}`).expect(HttpStatus.OK);
+    expect(first.body.hasNew).toBe(true);
+
+    const acknowledged = await hasNew(`snapshot=${first.body.snapshot}`).expect(
+      HttpStatus.OK,
+    );
+    expect(acknowledged.body.hasNew).toBe(false);
+
+    await insertEvents(getApp(), [{}]);
+
+    const later = await hasNew(`snapshot=${first.body.snapshot}`).expect(
+      HttpStatus.OK,
+    );
+    expect(later.body.hasNew).toBe(true);
   });
 
   it('rejects a missing or malformed snapshot', async () => {
