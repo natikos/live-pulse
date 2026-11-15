@@ -15,7 +15,7 @@ As a <who>, I want <what> so that <why>.
 <What the client expects to see. WHAT, never HOW.>
 
 ## Acceptance criteria
-<!-- Measurable and verifiable in a demo. -->
+<!-- Measurable and verifiable by the reviewer (tests, a run, numbers). -->
 - [ ] ...
 - [ ] ...
 
