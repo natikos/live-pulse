@@ -2,6 +2,7 @@ import { client } from '@/api/client';
 import { ApiError, shouldRetry } from '@/api/errors';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { EventFiltersValue } from './EventFilters';
+import { toFilterQuery } from './filterQuery';
 
 export function useEventList(filters: EventFiltersValue) {
   return useInfiniteQuery({
@@ -17,9 +18,7 @@ export function useEventList(filters: EventFiltersValue) {
         params: {
           query: {
             limit: 100,
-            type: filters.types.length > 0 ? filters.types : undefined,
-            startDate: filters.from?.getTime(),
-            endDate: filters.to?.getTime(),
+            ...toFilterQuery(filters),
             cursor: pageParam,
           },
         },
@@ -34,6 +33,8 @@ export function useEventList(filters: EventFiltersValue) {
     getNextPageParam: ({ nextCursor }) => nextCursor,
     select: ({ pages }) => ({
       events: pages.flatMap(({ items }) => items),
+      // Only the first page carries a token; the reader keeps that one.
+      snapshot: pages[0]?.snapshot ?? null,
     }),
   });
 }
